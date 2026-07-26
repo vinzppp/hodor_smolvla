@@ -3,7 +3,7 @@ defaults:
 
 task:
   name: "cabinet"
-  data_path: "./data/cabinet"  # set to your captured episodes for this task
+  data_path: "./data/cabinet"
   language_instruction: "pick up the pineapple and place it in the bowl"
   tracker: "cutie"
   classes: ["yellow.pineapple.", "purple.ball.", "red.ball."]

@@ -40,9 +40,11 @@ here. The SAM checkpoint (`sam_vit_h_4b8939.pth`, ~2.6GB) exceeds GitHub's
 wget -P pretrained https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth
 ```
 
-Before running, point `task.data_path` and `output.output_dir` in each
-`configs/<task>.yaml` at your own episode data and desired output location —
-the checked-in values are placeholders.
+`data/<task>/` includes 10 sample DROID episodes per task (trajectory,
+wrist depth, and MP4 recordings only — raw `.svo2` stereo files and
+precomputed outputs are not included) so the four configs run out of the
+box. Point `task.data_path` in `configs/<task>.yaml` at your own captured
+episodes to run on more data.
 
 ## HODOR preprocessing
 
