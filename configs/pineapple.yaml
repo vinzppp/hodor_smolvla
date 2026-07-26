@@ -1,0 +1,34 @@
+defaults:
+  - base
+
+task:
+  name: "pineapple"
+  data_path: "./data/pineapple"  # set to your captured episodes for this task
+  language_instruction: "pick up the pineapple and place it in the bowl"
+  tracker: "cutie"
+  classes: ["yellow.pineapple.", "bowl."]
+  num_objects: 2
+  confidence_threshold: 0.4
+  slot_by_class:
+    0: 2
+    1: 1
+
+data:
+  preprocess_final_size: 224
+  depth_min_m: 0.1
+  depth_max_m: 0.5
+
+perception:
+  num_processors: 2
+  skip_non_first_frame:
+    0: true
+    1: true
+  class_area_ranges:
+    0: [1000, 15000]
+    1: [1000, 15000]
+  global_area_min: 1000
+  global_area_max: 15000
+  overlap_threshold: 0.7
+
+output:
+  output_dir: "./hodor_output/pineapple"

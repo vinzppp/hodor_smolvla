@@ -1,0 +1,540 @@
+import os
+from dataclasses import dataclass
+from typing import Dict, List, Optional
+
+import albumentations as A
+import cv2
+import h5py
+import numpy as np
+import torch
+import torch.nn.functional as F
+from omegaconf import DictConfig, OmegaConf
+from PIL import Image, ImageOps
+from scipy.spatial.transform import Rotation as R
+from tqdm import tqdm
+
+try:
+    from .vit import get_vit
+except ImportError:
+    from vit import get_vit
+
+try:
+    from .extract_part_masks_cutie import build_tracker
+except ImportError:
+    from extract_part_masks_cutie import build_tracker
+
+
+@dataclass
+class FrameOutput:
+    representation: np.ndarray
+    bboxes: np.ndarray
+    dino_full: np.ndarray
+    separated_representation: Optional[np.ndarray] = None
+    separated_bboxes: Optional[np.ndarray] = None
+
+
+def _indexed_get(mapping, index, default=None):
+    if index in mapping:
+        return mapping[index]
+    if str(index) in mapping:
+        return mapping[str(index)]
+    return default
+
+
+class HODORProcessor:
+    def __init__(self, config: DictConfig):
+        self.config = config
+        self.device = torch.device("cuda:0")
+        self.classes = list(config.task.classes)
+        self.num_classes = len(self.classes)
+        self.feature_dim = int(config.model.get("feature_dim", 768))
+
+        self.vit_encoder, _ = get_vit(
+            config.paths.home_path,
+            config.model.vit_model,
+            int(config.model.vit_image_size),
+            global_pool=True,
+        )
+        self.vit_encoder.cuda()
+        self.vit_encoder.eval()
+        self.vit_encoder.freeze()
+        self.image_preprocessing = A.Compose(
+            [
+                A.Resize(
+                    height=int(config.model.vit_image_size),
+                    width=int(config.model.vit_image_size),
+                ),
+                A.Normalize(
+                    mean=(0.485, 0.456, 0.406),
+                    std=(0.229, 0.224, 0.225),
+                ),
+            ]
+        )
+
+        self.slot_by_class = {
+            class_index: int(_indexed_get(config.task.slot_by_class, class_index))
+            for class_index in range(self.num_classes)
+        }
+        expected_slots = set(range(1, self.num_classes + 1))
+        if set(self.slot_by_class.values()) != expected_slots:
+            raise ValueError(
+                "task.slot_by_class must map every class exactly once to slots "
+                f"1..{self.num_classes}; got {self.slot_by_class}"
+            )
+
+        self.tracker = build_tracker(config)
+        self.final_rp = None
+        self.final_bboxes = None
+        self.final_rp_separated = None
+        self.final_bboxes_separated = None
+
+    def _reset_episode_state(self):
+        self.final_rp = torch.zeros(
+            (self.num_classes + 1, self.feature_dim),
+            dtype=torch.float32,
+        )
+        self.final_bboxes = np.zeros(
+            (self.num_classes + 1, 7),
+            dtype=np.float32,
+        )
+        self.final_bboxes[0, :4] = [0.0, 1.0, 0.0, 1.0]
+
+        separated = self.config.task.get("separated")
+        if separated is not None and bool(separated.get("enabled", False)):
+            num_slots = int(separated.num_slots)
+            self.final_rp_separated = torch.zeros(
+                (num_slots, self.feature_dim),
+                dtype=torch.float32,
+            )
+            self.final_bboxes_separated = np.zeros((num_slots, 7), dtype=np.float32)
+            self.final_bboxes_separated[0, :4] = [0.0, 1.0, 0.0, 1.0]
+        else:
+            self.final_rp_separated = None
+            self.final_bboxes_separated = None
+
+    def _mask_to_instances(self, label_mask):
+        height, width = label_mask.shape
+        labels: List[int] = []
+        masks = []
+        bboxes = [[0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0]]
+
+        for class_index in range(self.num_classes):
+            class_mask = label_mask == class_index
+            if not class_mask.any():
+                continue
+            rows, columns = np.where(class_mask)
+            bboxes.append(
+                [
+                    float(rows.min()) / height,
+                    float(rows.max()) / height,
+                    float(columns.min()) / width,
+                    float(columns.max()) / width,
+                    0.0,
+                    0.0,
+                    0.0,
+                ]
+            )
+            labels.append(class_index)
+            masks.append(torch.from_numpy(class_mask.astype(np.float32)))
+
+        if masks:
+            binary_masks = torch.stack(masks, dim=0).unsqueeze(0)
+        else:
+            binary_masks = torch.zeros((1, 0, height, width), dtype=torch.float32)
+        return labels, binary_masks, np.asarray(bboxes, dtype=np.float32)
+
+    def _obtain_features(self, image_bgr, instance_masks):
+        image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
+        normalized = self.image_preprocessing(image=image_rgb)["image"]
+        image_tensor = (
+            torch.from_numpy(normalized)
+            .permute(2, 0, 1)
+            .unsqueeze(0)
+            .float()
+            .to(self.device)
+        )
+
+        with torch.amp.autocast(device_type="cuda", enabled=True):
+            with torch.no_grad():
+                global_repr, patch_repr = self.vit_encoder(image_tensor)
+        dino_full = patch_repr.detach().cpu().numpy()
+
+        num_instances = instance_masks.shape[1]
+        if num_instances == 0:
+            return global_repr.unsqueeze(1).cpu(), dino_full
+
+        token_count = patch_repr.shape[1]
+        token_side = int(round(token_count**0.5))
+        if token_side * token_side != token_count:
+            raise ValueError(f"Expected square ViT token grid, got {token_count} tokens")
+
+        token_masks = F.adaptive_max_pool2d(
+            instance_masks.float(),
+            output_size=(token_side, token_side),
+        )
+        token_masks = token_masks.reshape(1, num_instances, token_count).to(self.device)
+        repeated_features = patch_repr.unsqueeze(1).expand(
+            -1,
+            num_instances,
+            -1,
+            -1,
+        )
+        masked = repeated_features.float().masked_fill(
+            ~(token_masks.unsqueeze(-1) > 0.5),
+            float("nan"),
+        )
+        object_repr = masked.nanmean(dim=2)
+        object_repr = torch.where(
+            torch.isnan(object_repr),
+            torch.zeros_like(object_repr),
+            object_repr,
+        )
+        return torch.cat([global_repr.unsqueeze(1), object_repr], dim=1).cpu(), dino_full
+
+    def _depth_to_pointcloud(
+        self,
+        depth,
+        rgb,
+        intrinsics,
+        extrinsics,
+        binary_mask,
+    ):
+        fx, fy = intrinsics[0, 0], intrinsics[1, 1]
+        cx, cy = intrinsics[0, 2] - 150, intrinsics[1, 2]
+        u, v = np.meshgrid(np.arange(depth.shape[1]), np.arange(depth.shape[0]))
+        u = u.reshape(-1)
+        v = v.reshape(-1)
+        z = depth.reshape(-1)
+        valid = (
+            (z > float(self.config.data.depth_min_m))
+            & (z < float(self.config.data.depth_max_m))
+            & (binary_mask.reshape(-1) > 0)
+        )
+        if not valid.any():
+            return np.empty((0, 3), dtype=np.float32), np.empty((0, 3), dtype=np.uint8)
+
+        u = u[valid]
+        v = v[valid]
+        z = z[valid]
+        x = (u - cx) * z / fx
+        y = (v - cy) * z / fy
+        points = np.column_stack([x, y, z])
+
+        extrinsics = np.asarray(extrinsics)
+        if extrinsics.shape == (4, 4):
+            transform = extrinsics
+        else:
+            tx, ty, tz, rx, ry, rz = extrinsics.reshape(-1)[:6]
+            transform = np.eye(4)
+            transform[:3, :3] = R.from_euler("xyz", [rx, ry, rz]).as_matrix()
+            transform[:3, 3] = [tx, ty, tz]
+        homogeneous = np.column_stack([points, np.ones(len(points))])
+        points = (transform @ homogeneous.T).T[:, :3]
+        return points, rgb[v, u, :]
+
+    def _add_centroids(self, binary_masks, bboxes, depth, hand_rgb_unrotated, intrinsics, extrinsics):
+        for instance_index in range(binary_masks.shape[1]):
+            resized = F.interpolate(
+                binary_masks[:, instance_index : instance_index + 1].float(),
+                size=(800, 800),
+                mode="nearest",
+            )[0, 0]
+            # The tracker sees a 180-degree-rotated wrist image. Rotate the mask
+            # back to align it with unrotated RGB and depth.
+            unrotated_mask = np.rot90(resized.numpy(), k=2)
+            points, _ = self._depth_to_pointcloud(
+                depth,
+                hand_rgb_unrotated,
+                intrinsics,
+                extrinsics,
+                unrotated_mask,
+            )
+            if len(points) > 0:
+                bboxes[instance_index + 1, 4:7] = points.mean(axis=0)
+
+    def _update_separated(
+        self,
+        class_index,
+        feature,
+        bbox,
+        image_height,
+    ):
+        if self.final_rp_separated is None:
+            return
+        separated = self.config.task.separated
+        if class_index == 0:
+            slot = int(separated.bowl_slot)
+        elif class_index == 1:
+            vertical_extent = (bbox[1] - bbox[0]) * image_height
+            if vertical_extent > float(separated.stuffed_extent_threshold_px):
+                slot = int(separated.giraffe_slot)
+            else:
+                slot = int(separated.chicken_slot)
+        elif class_index == 2:
+            slot = int(separated.pineapple_slot)
+        elif class_index == 3:
+            slot = int(separated.ball_slot)
+        else:
+            return
+        self.final_rp_separated[slot] = feature
+        self.final_bboxes_separated[slot] = bbox
+
+    def process_frame(
+        self,
+        hand_bgr_rotated,
+        frame_num,
+        episode_num,
+        depth,
+        hand_rgb_unrotated,
+        intrinsics,
+        extrinsics,
+    ):
+        if frame_num == 0:
+            self._reset_episode_state()
+        self.tracker.episode_num = episode_num
+
+        label_mask = self.tracker.process(hand_bgr_rotated, frame_num)
+        labels, binary_masks, bboxes = self._mask_to_instances(label_mask)
+        self._add_centroids(
+            binary_masks,
+            bboxes,
+            depth,
+            hand_rgb_unrotated,
+            intrinsics,
+            extrinsics,
+        )
+        frame_repr, dino_full = self._obtain_features(hand_bgr_rotated, binary_masks)
+
+        self.final_rp[0] = frame_repr[0, 0]
+        self.final_bboxes[1:, :4] = 0.0
+        if self.final_rp_separated is not None:
+            self.final_rp_separated[0] = frame_repr[0, 0]
+            self.final_bboxes_separated[1:, :4] = 0.0
+
+        for instance_index, class_index in enumerate(labels):
+            feature = frame_repr[0, instance_index + 1]
+            bbox = bboxes[instance_index + 1]
+            slot = self.slot_by_class[class_index]
+            self.final_rp[slot] = feature
+            self.final_bboxes[slot] = bbox
+            self._update_separated(
+                class_index,
+                feature,
+                bbox,
+                label_mask.shape[0],
+            )
+
+        return FrameOutput(
+            representation=self.final_rp.numpy().copy(),
+            bboxes=self.final_bboxes.copy(),
+            dino_full=dino_full,
+            separated_representation=(
+                None
+                if self.final_rp_separated is None
+                else self.final_rp_separated.numpy().copy()
+            ),
+            separated_bboxes=(
+                None
+                if self.final_bboxes_separated is None
+                else self.final_bboxes_separated.copy()
+            ),
+        )
+
+
+def load_config(config_path):
+    config_path = os.path.abspath(config_path)
+    task_config = OmegaConf.load(config_path)
+    merged = OmegaConf.create({})
+    for default in task_config.get("defaults", []):
+        if not isinstance(default, str):
+            raise ValueError(f"Only string defaults are supported, got {default!r}")
+        default_path = os.path.join(os.path.dirname(config_path), f"{default}.yaml")
+        if not os.path.exists(default_path):
+            raise FileNotFoundError(default_path)
+        merged = OmegaConf.merge(merged, OmegaConf.load(default_path))
+    merged = OmegaConf.merge(merged, task_config)
+    OmegaConf.resolve(merged)
+    return merged
+
+
+def _preprocess_wrist_bgr(raw_bgr, final_size):
+    if raw_bgr.shape[0] < 720 or raw_bgr.shape[1] < 1050:
+        raise ValueError(f"Unexpected wrist image shape: {raw_bgr.shape}")
+    image = Image.fromarray(raw_bgr).crop((150, 0, 1050, 720))
+    width, height = image.size
+    maximum = max(width, height)
+    padding = (
+        (maximum - width) // 2,
+        (maximum - height) // 2,
+        (maximum - width + 1) // 2,
+        (maximum - height + 1) // 2,
+    )
+    image = ImageOps.expand(image, padding, fill=(0, 0, 0))
+    resize_target = int(round(final_size * 1.125))
+    crop_offset = (resize_target - final_size) // 2
+    image = image.resize((resize_target, resize_target), resample=Image.BICUBIC)
+    image = image.crop(
+        (
+            crop_offset,
+            crop_offset,
+            crop_offset + final_size,
+            crop_offset + final_size,
+        )
+    )
+    return np.asarray(image)
+
+
+def _preprocess_depth(depth_mm):
+    depth = depth_mm[:, 150:1050].astype(np.float32) / 1000.0
+    depth = np.pad(
+        depth,
+        ((90, 90), (0, 0)),
+        mode="constant",
+        constant_values=0.0,
+    )
+    return depth[50:850, 50:850]
+
+
+def process_episode(processor, config, episode_path, episode_num):
+    try:
+        from .droid_utils import load_trajectory
+    except ImportError:
+        from droid_utils import load_trajectory
+
+    trajectory_path = os.path.join(episode_path, "trajectory.h5")
+    depth_path = os.path.join(
+        episode_path,
+        "recordings",
+        "Depth",
+        "wrist_camera_left_depth.h5",
+    )
+    mp4_path = os.path.join(episode_path, "recordings", "MP4")
+    if not all(
+        [
+            os.path.exists(trajectory_path),
+            os.path.exists(depth_path),
+            os.path.isdir(mp4_path),
+        ]
+    ):
+        print(f"Skipping incomplete episode: {episode_path}")
+        return False
+
+    with h5py.File(depth_path, "r") as depth_file:
+        depth_frames = depth_file["depth_frames"][:]
+    data = load_trajectory(
+        trajectory_path,
+        recording_folderpath=mp4_path,
+    )
+    if len(data) == 0:
+        print(f"Skipping empty episode: {episode_path}")
+        return False
+
+    episode_pr = []
+    episode_bboxes = []
+    episode_pr_separated = []
+    episode_bboxes_separated = []
+    episode_dino_full = []
+    final_size = int(config.data.preprocess_final_size)
+
+    for frame_num, step in enumerate(data):
+        if frame_num >= len(depth_frames):
+            print(f"Stopping at frame {frame_num}: depth stream is shorter than trajectory")
+            break
+        observation = step["observation"]
+        wrist_ids = [
+            key
+            for key, camera_type in observation["camera_type"].items()
+            if camera_type == 0
+        ]
+        if not wrist_ids:
+            raise ValueError("No wrist camera with camera_type == 0")
+        wrist_key = f"{wrist_ids[0]}_left"
+        raw_bgr = observation["image"][wrist_key]
+
+        wrist_bgr_unrotated = _preprocess_wrist_bgr(raw_bgr, final_size)
+        wrist_bgr_rotated = np.ascontiguousarray(
+            np.rot90(wrist_bgr_unrotated, k=2)
+        )
+        hand_bgr_800 = np.asarray(
+            Image.fromarray(wrist_bgr_unrotated).resize(
+                (800, 800),
+                resample=Image.BICUBIC,
+            )
+        )
+        hand_rgb_800 = cv2.cvtColor(hand_bgr_800, cv2.COLOR_BGR2RGB)
+        depth = _preprocess_depth(depth_frames[frame_num])
+
+        output = processor.process_frame(
+            hand_bgr_rotated=wrist_bgr_rotated,
+            frame_num=frame_num,
+            episode_num=episode_num,
+            depth=depth,
+            hand_rgb_unrotated=hand_rgb_800,
+            intrinsics=observation["camera_intrinsics"][wrist_key],
+            extrinsics=observation["camera_extrinsics"][wrist_key],
+        )
+        episode_pr.append(output.representation)
+        episode_bboxes.append(output.bboxes)
+        if output.separated_representation is not None:
+            episode_pr_separated.append(output.separated_representation)
+            episode_bboxes_separated.append(output.separated_bboxes)
+        if bool(config.output.get("save_dino_full", False)):
+            episode_dino_full.append(output.dino_full)
+
+    if not episode_pr:
+        return False
+    np.save(os.path.join(episode_path, "episode_pr.npy"), np.asarray(episode_pr))
+    np.save(
+        os.path.join(episode_path, "episode_bboxes.npy"),
+        np.asarray(episode_bboxes),
+    )
+    if episode_pr_separated:
+        np.save(
+            os.path.join(episode_path, "episode_pr_seperated.npy"),
+            np.asarray(episode_pr_separated),
+        )
+        np.save(
+            os.path.join(episode_path, "episode_bboxes_seperated.npy"),
+            np.asarray(episode_bboxes_separated),
+        )
+    if episode_dino_full:
+        np.save(
+            os.path.join(episode_path, "episode_dino_full.npy"),
+            np.asarray(episode_dino_full),
+        )
+    return True
+
+
+def main(config_path):
+    try:
+        from .droid_utils import crawler
+    except ImportError:
+        from droid_utils import crawler
+
+    config = load_config(config_path)
+    processor = HODORProcessor(config)
+    episodes = [
+        path
+        for path in crawler(config.task.data_path)
+        if os.path.exists(os.path.join(path, "trajectory.h5"))
+    ]
+    print(f"Found {len(episodes)} episodes")
+    for episode_num, episode_path in tqdm(
+        list(enumerate(episodes)),
+        desc=config.task.name,
+    ):
+        process_episode(
+            processor,
+            config,
+            episode_path,
+            episode_num,
+        )
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", required=True)
+    arguments = parser.parse_args()
+    main(arguments.config)

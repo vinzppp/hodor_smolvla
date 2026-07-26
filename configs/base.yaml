@@ -1,0 +1,38 @@
+model:
+  vit_model: "dino-vit-b16"
+  vit_image_size: 224
+  feature_dim: 768
+
+data:
+  image_res: [180, 320]
+  vis_path: "./vis"
+  preprocess_final_size: 448
+  depth_min_m: 0.1
+  depth_max_m: 2.0
+
+perception:
+  box_threshold: 0.25
+  text_threshold: 0.25
+  nms_threshold: 0.8
+  overlap_threshold: 0.7
+  cutie_max_internal_size: 480
+  sam_pred_iou_thresh: 0.80
+  sam_stability_score_thresh: 0.80
+  sam_box_nms_thresh: 0.4
+  sam_crop_nms_thresh: 0.4
+  sam_min_mask_region_area: 300
+
+paths:
+  # Relative to the directory this script is run from (this folder). See
+  # README for how groundingdino/segment_anything/cutie are installed.
+  home_path: "."
+  groundingdino_config: null  # defaults to the installed groundingdino package's config
+  groundingdino_checkpoint: "pretrained/groundingdino_swint_ogc.pth"
+  sam_checkpoint: "pretrained/sam_vit_h_4b8939.pth"
+  sam_model_type: "vit_h"
+
+output:
+  output_dir: "./hodor_output"
+  save_annotations: true
+  save_masks: true
+  save_dino_full: false

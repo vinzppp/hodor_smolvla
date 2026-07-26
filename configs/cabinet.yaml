@@ -1,0 +1,31 @@
+defaults:
+  - base
+
+task:
+  name: "cabinet"
+  data_path: "./data/cabinet"  # set to your captured episodes for this task
+  language_instruction: "pick up the pineapple and place it in the bowl"
+  tracker: "cutie"
+  classes: ["yellow.pineapple.", "purple.ball.", "red.ball."]
+  num_objects: 3
+  confidence_threshold: 0.3
+  slot_by_class:
+    0: 1
+    1: 2
+    2: 3
+
+perception:
+  num_processors: 3
+  class_area_ranges:
+    0: [3000, 150000]
+    1: [3000, 30000]
+    2: [3000, 30000]
+  skip_non_first_frame: false
+    # 1: true
+    # 2: true
+  global_area_min: null
+  global_area_max: null
+  overlap_threshold: 0.3
+
+output:
+  output_dir: "./hodor_output/cabinet"

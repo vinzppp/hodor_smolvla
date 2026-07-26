@@ -1,0 +1,51 @@
+defaults:
+  - base
+
+task:
+  name: "chicken"
+  data_path: "./data/chicken"  # set to your captured episodes for this task
+  language_instruction: "pick up the pineapple and place it in the bowl"
+  tracker: "cutie"
+  classes: ["bowl.", "stuffed.animal.", "yellow.pineapple.", "ball."]
+  num_objects: 5
+  confidence_threshold: 0.2
+  slot_by_class:
+    0: 1
+    1: 2
+    2: 3
+    3: 4
+  separated:
+    enabled: true
+    num_slots: 6
+    bowl_slot: 1
+    chicken_slot: 2
+    giraffe_slot: 3
+    pineapple_slot: 4
+    ball_slot: 5
+    # The legacy code used bbox row extent (despite naming it "width").
+    stuffed_extent_threshold_px: 180
+
+data:
+  preprocess_final_size: 448
+  depth_min_m: 0.1
+  depth_max_m: 0.5
+
+# Exact values from the legacy visuomotor/utils/extract_part_masks.py.
+perception:
+  num_processors: 4
+  skip_non_first_frame:
+    0: true
+    1: true
+    2: true
+    3: true
+  class_area_ranges:
+    0: [1000, 150000]
+    1: [1000, 150000]
+    2: [1000, 150000]
+    3: [1000, 150000]
+  global_area_min: null
+  global_area_max: null
+  overlap_threshold: 0.7
+
+output:
+  output_dir: "./hodor_output/chicken"

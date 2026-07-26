@@ -1,0 +1,27 @@
+defaults:
+  - base
+
+task:
+  name: "giraffe"
+  data_path: "./data/giraffe"  # set to your captured episodes for this task
+  language_instruction: "pick up the pineapple and place it in the bowl"
+  tracker: "cutie"
+  classes: ["yellow.pineapple.", "toy.giraffe."]
+  num_objects: 2
+  confidence_threshold: 0.5
+  slot_by_class:
+    0: 1
+    1: 2
+
+perception:
+  num_processors: 2
+  class_area_ranges:
+    0: [3000, 60000]
+    1: [7500, 30000]
+  skip_non_first_frame: false
+  global_area_min: 3000
+  global_area_max: 50000
+  overlap_threshold: 0.7
+
+output:
+  output_dir: "./hodor_output/giraffe"
