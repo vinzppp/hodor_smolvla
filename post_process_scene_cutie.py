@@ -354,7 +354,49 @@ def load_config(config_path):
         merged = OmegaConf.merge(merged, OmegaConf.load(default_path))
     merged = OmegaConf.merge(merged, task_config)
     OmegaConf.resolve(merged)
+    _maybe_resolve_entities(
+        merged,
+        os.path.dirname(config_path),
+        os.path.splitext(os.path.basename(config_path))[0],
+    )
     return merged
+
+
+def _maybe_resolve_entities(config, config_dir, config_stem):
+    """Section 3.1 LLM front-end: when task.entities.source == 'llm', derive the
+    GroundingDINO class list (and slot mapping) from the language instruction via
+    an LLM instead of using a hardcoded task.classes. Manual configs are left
+    untouched (no entities block, or source == 'manual')."""
+    task = config.get("task")
+    entities_cfg = task.get("entities") if task is not None else None
+    if not entities_cfg or str(entities_cfg.get("source", "manual")).lower() != "llm":
+        return
+
+    try:
+        from .llm_entities import resolve_entities, build_slot_by_class
+    except ImportError:
+        from llm_entities import resolve_entities, build_slot_by_class
+
+    instruction = task.get("language_instruction")
+    if not instruction:
+        raise ValueError(
+            "task.entities.source='llm' requires task.language_instruction."
+        )
+
+    cfg = OmegaConf.to_container(entities_cfg, resolve=True)
+    if not cfg.get("cache_file"):
+        cfg["cache_file"] = f"{config_stem}.entities.json"
+
+    resolved = resolve_entities(cfg, instruction, config_dir)
+
+    OmegaConf.set_struct(config, False)
+    task.classes = list(resolved["classes"])
+    if task.get("slot_by_class") is None:
+        task.slot_by_class = build_slot_by_class(len(resolved["classes"]))
+    print(
+        f"[entities] task '{task.get('name')}': {list(resolved['classes'])} "
+        f"(provider={resolved.get('provider')}, model={resolved.get('model')})"
+    )
 
 
 def _preprocess_wrist_bgr(raw_bgr, final_size):

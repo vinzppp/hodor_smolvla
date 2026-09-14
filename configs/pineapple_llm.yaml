@@ -1,0 +1,31 @@
+# Section 3.1 faithful variant of the pineapple task: the object classes are
+# NOT hardcoded. They are derived from task.language_instruction by an LLM at
+# load time (see llm_entities.py), matching the paper's task-driven scene graph.
+#
+# First run needs network + an API key (ANTHROPIC_API_KEY or OPENAI_API_KEY).
+# The result is cached to configs/pineapple_llm.entities.json, so later runs are
+# offline and deterministic. Pre-generate/inspect it with:
+#   python llm_entities.py --config configs/pineapple_llm.yaml --write
+defaults:
+  - base
+
+task:
+  name: "pineapple_llm"
+  data_path: "./data/pineapple"
+  language_instruction: "pick up the pineapple and place it in the bowl"
+  tracker: "cutie"
+  entities:
+    source: "llm"        # manual | llm
+    provider: "auto"     # auto | anthropic | openai | openrouter
+    model: null          # null -> {PROVIDER}_MODEL env, else provider default
+    max_entities: 6
+    cache: true          # cache to configs/pineapple_llm.entities.json
+    extra: []            # optional distractors always included
+  confidence_threshold: 0.3
+  # classes and slot_by_class are filled in automatically from the instruction.
+
+perception:
+  overlap_threshold: 0.7
+
+output:
+  output_dir: "./hodor_output/pineapple_llm"

@@ -1,0 +1,39 @@
+# Section 3.1 faithful backbone: same manual giraffe classes as configs/giraffe.yaml,
+# but swaps the DINO-v1 ViT-B/16 encoder for a DINO-v2 ViT-B/14 encoder (the
+# backbone the paper uses for node/scene embeddings). Lets you A/B the backbone
+# without involving the LLM front-end or an API key.
+#
+# vit_image_size must be divisible by the DINOv2 patch size (14); 224 = 16*14.
+# DINOv2 weights download from torch.hub on first use (setup_gpu.sh prefetches).
+defaults:
+  - base
+
+model:
+  vit_model: "dinov2-vit-b14"
+  vit_image_size: 224
+  feature_dim: 768
+
+task:
+  name: "giraffe_dinov2"
+  data_path: "./data/giraffe"
+  language_instruction: "pick up the pineapple and place it in the bowl"
+  tracker: "cutie"
+  classes: ["yellow.pineapple.", "toy.giraffe."]
+  num_objects: 2
+  confidence_threshold: 0.5
+  slot_by_class:
+    0: 1
+    1: 2
+
+perception:
+  num_processors: 2
+  class_area_ranges:
+    0: [3000, 60000]
+    1: [7500, 30000]
+  skip_non_first_frame: false
+  global_area_min: 3000
+  global_area_max: 50000
+  overlap_threshold: 0.7
+
+output:
+  output_dir: "./hodor_output/giraffe_dinov2"

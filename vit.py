@@ -407,6 +407,17 @@ def load_clip_checkpoint(checkpoint_file: nn.Module, model: nn.Module) -> None:
 def get_vit(
     root_dir: str, embedding_name: str, img_size: int, encode_stackframes: bool = False, global_pool=False
 ) -> tuple[nn.Module, int]:
+    if embedding_name.startswith("dinov2"):
+        try:
+            from .dinov2_encoder import DINOV2_HUB, DINOv2Encoder
+        except ImportError:
+            from dinov2_encoder import DINOV2_HUB, DINOv2Encoder
+        # Optional offline weights: pretrained/<embedding_name>.pth
+        local_ckpt = os.path.join(root_dir, "pretrained", f"{embedding_name}.pth")
+        checkpoint = local_ckpt if os.path.exists(local_ckpt) else None
+        model = DINOv2Encoder(embedding_name, img_size=img_size, checkpoint=checkpoint)
+        return model, DINOV2_HUB[embedding_name][1]
+
     pretrain_fname = VIT_MODELS[embedding_name]
     pretrain_path = os.path.join(root_dir, "pretrained", pretrain_fname)
 
