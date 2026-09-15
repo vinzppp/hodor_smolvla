@@ -98,6 +98,11 @@ class GroundedSAMDetector:
         )
         sam.to(device=torch.device("cuda" if torch.cuda.is_available() else "cpu"))
         self.sam_predictor = SamPredictor(sam)
+        # Holds the most recent RAW GroundingDINO output (all candidate boxes +
+        # confidences, before NMS / area / overlap / confidence filtering). The
+        # tracker dumps this per (episode, frame, class) when saving is on, so
+        # the detect-stage output is inspectable, not just the final boxes.
+        self.last_raw = None
 
     def detect_class(
         self,
@@ -112,6 +117,12 @@ class GroundedSAMDetector:
                 box_threshold=self.box_threshold,
                 text_threshold=self.text_threshold,
             )
+        # Snapshot the raw detect-stage output before any filtering.
+        self.last_raw = {
+            "class_index": int(class_index),
+            "xyxy": np.asarray(detections.xyxy, dtype=np.float32),
+            "confidence": np.asarray(detections.confidence, dtype=np.float32),
+        }
         if len(detections.xyxy) == 0:
             return None, None, None
 
@@ -192,6 +203,22 @@ class TrackerBase:
             f"{self.episode_num}_{frame_index}_{class_index}_{suffix}.png",
         )
         Image.fromarray((class_mask.astype(np.uint8) * 255)).save(path)
+
+    def _save_detections(self, raw, frame_index):
+        # Persist the raw GroundingDINO detect-stage output (all candidate
+        # boxes + confidences before filtering) as a small .npz, keyed by
+        # episode/frame/class. Gated by save_masks so it rides along with the
+        # other per-frame intermediates. `raw` is the detector's last_raw dict.
+        if not self.save_masks or not raw:
+            return
+        np.savez(
+            os.path.join(
+                self.output_dir,
+                f"{self.episode_num}_{frame_index}_{raw['class_index']}_detections.npz",
+            ),
+            xyxy=raw["xyxy"],
+            confidence=raw["confidence"],
+        )
 
     def _save_overlay(self, image_bgr, label_mask, frame_index):
         if not self.save_annotations:
@@ -312,6 +339,7 @@ class CutieTracker(TrackerBase):
                 class_index,
                 occupied_masks,
             )
+            self._save_detections(self.detector.last_raw, frame_index)
             if detected_mask is None:
                 continue
 
