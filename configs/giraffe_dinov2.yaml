@@ -40,3 +40,4 @@ output:
   save_annotations: true   # colored tracked-mask overlays ({ep}_{frame}_overlay.png)
   save_masks: true         # per-class binary masks + raw detection .npz dumps
   save_dino_full: true     # full DINO patch features before masked pooling (episode_dino_full.npy)
+  save_rerun: true         # one .rrd per episode in <output_dir>/rerun/ (open with: rerun <file>)

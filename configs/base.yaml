@@ -36,3 +36,4 @@ output:
   save_annotations: true
   save_masks: true
   save_dino_full: false
+  save_rerun: false        # per-episode Rerun timeline (.rrd), see rerun_logger.py

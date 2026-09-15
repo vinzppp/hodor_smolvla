@@ -23,6 +23,13 @@ try:
 except ImportError:
     from extract_part_masks_cutie import build_tracker
 
+try:
+    from . import stage_timer
+    from .stage_timer import stage
+except ImportError:
+    import stage_timer
+    from stage_timer import stage
+
 
 @dataclass
 class FrameOutput:
@@ -83,6 +90,15 @@ class HODORProcessor:
             )
 
         self.tracker = build_tracker(config)
+        # Rerun timeline (one .rrd per episode), see rerun_logger.py.
+        self.viz = None
+        if bool(config.output.get("save_rerun", False)):
+            try:
+                from .rerun_logger import RerunLogger
+            except ImportError:
+                from rerun_logger import RerunLogger
+            self.viz = RerunLogger(config)
+        self.tracker.viz = self.viz
         self.final_rp = None
         self.final_bboxes = None
         self.final_rp_separated = None
@@ -292,18 +308,22 @@ class HODORProcessor:
         if frame_num == 0:
             self._reset_episode_state()
         self.tracker.episode_num = episode_num
+        if self.viz is not None:
+            self.viz.begin_frame(frame_num, hand_bgr_rotated)
 
         label_mask = self.tracker.process(hand_bgr_rotated, frame_num)
         labels, binary_masks, bboxes = self._mask_to_instances(label_mask)
-        self._add_centroids(
-            binary_masks,
-            bboxes,
-            depth,
-            hand_rgb_unrotated,
-            intrinsics,
-            extrinsics,
-        )
-        frame_repr, dino_full = self._obtain_features(hand_bgr_rotated, binary_masks)
+        with stage("centroid"):
+            self._add_centroids(
+                binary_masks,
+                bboxes,
+                depth,
+                hand_rgb_unrotated,
+                intrinsics,
+                extrinsics,
+            )
+        with stage("embed"):
+            frame_repr, dino_full = self._obtain_features(hand_bgr_rotated, binary_masks)
 
         self.final_rp[0] = frame_repr[0, 0]
         self.final_bboxes[1:, :4] = 0.0
@@ -323,6 +343,9 @@ class HODORProcessor:
                 bbox,
                 label_mask.shape[0],
             )
+
+        if self.viz is not None:
+            self.viz.end_frame(label_mask, self.final_rp, self.final_bboxes, dino_full)
 
         return FrameOutput(
             representation=self.final_rp.numpy().copy(),
@@ -461,15 +484,19 @@ def process_episode(processor, config, episode_path, episode_num):
         print(f"Skipping incomplete episode: {episode_path}")
         return False
 
-    with h5py.File(depth_path, "r") as depth_file:
-        depth_frames = depth_file["depth_frames"][:]
-    data = load_trajectory(
-        trajectory_path,
-        recording_folderpath=mp4_path,
-    )
+    with stage("load"):
+        with h5py.File(depth_path, "r") as depth_file:
+            depth_frames = depth_file["depth_frames"][:]
+        data = load_trajectory(
+            trajectory_path,
+            recording_folderpath=mp4_path,
+        )
     if len(data) == 0:
         print(f"Skipping empty episode: {episode_path}")
         return False
+    viz = getattr(processor, "viz", None)
+    if viz is not None:
+        viz.start_episode(episode_num, os.path.basename(os.path.normpath(episode_path)))
 
     episode_pr = []
     episode_bboxes = []
@@ -493,18 +520,19 @@ def process_episode(processor, config, episode_path, episode_num):
         wrist_key = f"{wrist_ids[0]}_left"
         raw_bgr = observation["image"][wrist_key]
 
-        wrist_bgr_unrotated = _preprocess_wrist_bgr(raw_bgr, final_size)
-        wrist_bgr_rotated = np.ascontiguousarray(
-            np.rot90(wrist_bgr_unrotated, k=2)
-        )
-        hand_bgr_800 = np.asarray(
-            Image.fromarray(wrist_bgr_unrotated).resize(
-                (800, 800),
-                resample=Image.BICUBIC,
+        with stage("preprocess"):
+            wrist_bgr_unrotated = _preprocess_wrist_bgr(raw_bgr, final_size)
+            wrist_bgr_rotated = np.ascontiguousarray(
+                np.rot90(wrist_bgr_unrotated, k=2)
             )
-        )
-        hand_rgb_800 = cv2.cvtColor(hand_bgr_800, cv2.COLOR_BGR2RGB)
-        depth = _preprocess_depth(depth_frames[frame_num])
+            hand_bgr_800 = np.asarray(
+                Image.fromarray(wrist_bgr_unrotated).resize(
+                    (800, 800),
+                    resample=Image.BICUBIC,
+                )
+            )
+            hand_rgb_800 = cv2.cvtColor(hand_bgr_800, cv2.COLOR_BGR2RGB)
+            depth = _preprocess_depth(depth_frames[frame_num])
 
         output = processor.process_frame(
             hand_bgr_rotated=wrist_bgr_rotated,
@@ -523,6 +551,8 @@ def process_episode(processor, config, episode_path, episode_num):
         if bool(config.output.get("save_dino_full", False)):
             episode_dino_full.append(output.dino_full)
 
+    if viz is not None:
+        viz.end_episode()
     if not episode_pr:
         return False
     # Final embed-stage arrays go in step4_embed/<episode>/ under output_dir,
@@ -552,33 +582,176 @@ def process_episode(processor, config, episode_path, episode_num):
             os.path.join(embed_dir, "episode_dino_full.npy"),
             np.asarray(episode_dino_full),
         )
-    return True
+    return embed_dir
+
+
+def _episode_record(episode_num, episode_path, embed_dir, wall, processor):
+    record = {
+        "episode_index": episode_num,
+        "episode": os.path.basename(os.path.normpath(episode_path)),
+        "ok": bool(embed_dir),
+        "wall_s": round(wall, 2),
+        "stages": stage_timer.totals(),
+        "seed_events": list(getattr(processor.tracker, "seed_events", [])),
+        "peak_gpu_mem_gb": round(torch.cuda.max_memory_allocated() / 1e9, 2)
+        if torch.cuda.is_available()
+        else None,
+    }
+    if embed_dir:
+        pr = np.load(os.path.join(embed_dir, "episode_pr.npy"), mmap_mode="r")
+        bb = np.load(os.path.join(embed_dir, "episode_bboxes.npy"))
+        record["frames"] = int(pr.shape[0])
+        viz = getattr(processor, "viz", None)
+        if viz is not None and viz.paths:
+            record["rerun_file"] = viz.paths[-1]
+        record["pr_shape"] = list(pr.shape)
+        record["bboxes_shape"] = list(bb.shape)
+        # A slot is "present" in a frame when its 2D box was written this frame.
+        present = np.abs(bb[:, 1:, :4]).sum(axis=-1) > 0
+        record["presence"] = {
+            name: round(float(present[:, processor.slot_by_class[i] - 1].mean()), 3)
+            for i, name in enumerate(processor.classes)
+        }
+        dino_full_path = os.path.join(embed_dir, "episode_dino_full.npy")
+        if os.path.exists(dino_full_path):
+            record["dino_full_shape"] = list(
+                np.load(dino_full_path, mmap_mode="r").shape
+            )
+    return record
+
+
+def _format_episode(record):
+    head = f"[ep {record['episode_index']} {record['episode']}]"
+    if not record["ok"]:
+        return f"{head} SKIPPED/FAILED after {record['wall_s']}s"
+    frames = record["frames"]
+    fps = frames / max(record["wall_s"], 1e-6)
+    lines = [
+        f"{head} T={frames} frames, {fps:.2f} fps, peak GPU {record['peak_gpu_mem_gb']} GB",
+        "    time: " + stage_timer.format_line(record["stages"], record["wall_s"]),
+        f"    step4 out: pr {tuple(record['pr_shape'])}  bboxes {tuple(record['bboxes_shape'])}"
+        + (
+            f"  dino_full {tuple(record['dino_full_shape'])}"
+            if "dino_full_shape" in record
+            else ""
+        ),
+        "    presence: "
+        + ", ".join(f"{k} {100 * v:.0f}%" for k, v in record["presence"].items()),
+    ]
+    seeded = {event["class"] for event in record["seed_events"]}
+    missing = [name for name in record["presence"] if name not in seeded]
+    if missing:
+        lines.append(f"    WARNING never detected: {missing}")
+    if record.get("rerun_file"):
+        size_mb = os.path.getsize(record["rerun_file"]) / 1e6
+        lines.append(f"    rerun: {record['rerun_file']} ({size_mb:.1f} MB)")
+    return "\n".join(lines)
 
 
 def main(config_path):
+    import json
+    import time
+
     try:
         from .droid_utils import crawler
     except ImportError:
         from droid_utils import crawler
 
     config = load_config(config_path)
+    output_dir = config.output.output_dir
+    os.makedirs(output_dir, exist_ok=True)
+    gpu = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU"
+    print("=" * 78)
+    print(f"task          : {config.task.name}")
+    print(f"config        : {config_path}")
+    print(f"instruction   : {config.task.get('language_instruction')}")
+    print(f"classes       : {list(config.task.classes)}")
+    print(f"slot_by_class : {dict(config.task.slot_by_class)}")
+    print(f"backbone      : {config.model.vit_model} @ {config.model.vit_image_size}px")
+    print(f"data_path     : {config.task.data_path}")
+    print(f"output_dir    : {output_dir}")
+    print(f"device        : {gpu}")
+    print("pipeline      : 1 GroundingDINO -> 2 SAM ViT-H -> 3 Cutie -> 4 DINO embed")
+    print(f"rerun viewer  : {'ON -> ' + os.path.join(output_dir, 'rerun') if config.output.get('save_rerun', False) else 'off'}")
+    print("=" * 78)
+
+    t_init = time.perf_counter()
     processor = HODORProcessor(config)
+    init_s = time.perf_counter() - t_init
+    print(f"models loaded in {init_s:.1f}s")
+
     episodes = [
         path
         for path in crawler(config.task.data_path)
         if os.path.exists(os.path.join(path, "trajectory.h5"))
     ]
     print(f"Found {len(episodes)} episodes")
+    # step1-3 files are keyed by episode INDEX, step4 by episode NAME: save the map.
+    with open(os.path.join(output_dir, "episodes.json"), "w") as handle:
+        json.dump(
+            {str(i): os.path.basename(os.path.normpath(p)) for i, p in enumerate(episodes)},
+            handle,
+            indent=2,
+        )
+
+    records = []
+    t_run = time.perf_counter()
     for episode_num, episode_path in tqdm(
         list(enumerate(episodes)),
         desc=config.task.name,
     ):
-        process_episode(
+        stage_timer.reset()
+        if torch.cuda.is_available():
+            torch.cuda.reset_peak_memory_stats()
+        t_episode = time.perf_counter()
+        embed_dir = process_episode(
             processor,
             config,
             episode_path,
             episode_num,
         )
+        record = _episode_record(
+            episode_num, episode_path, embed_dir, time.perf_counter() - t_episode, processor
+        )
+        records.append(record)
+        tqdm.write(_format_episode(record))
+
+    run_s = time.perf_counter() - t_run
+    stage_sum = {}
+    for record in records:
+        for key, value in record["stages"].items():
+            stage_sum.setdefault(key, {"seconds": 0.0, "calls": 0})
+            stage_sum[key]["seconds"] = round(stage_sum[key]["seconds"] + value["seconds"], 3)
+            stage_sum[key]["calls"] += value["calls"]
+    total_frames = sum(r.get("frames", 0) for r in records)
+    summary = {
+        "task": config.task.name,
+        "config": os.path.abspath(config_path),
+        "device": gpu,
+        "torch": torch.__version__,
+        "classes": list(config.task.classes),
+        "backbone": config.model.vit_model,
+        "episodes_ok": sum(r["ok"] for r in records),
+        "episodes_total": len(records),
+        "frames_total": total_frames,
+        "model_load_s": round(init_s, 2),
+        "run_s": round(run_s, 2),
+        "fps": round(total_frames / max(run_s, 1e-6), 3),
+        "stages": stage_sum,
+        "episodes": records,
+    }
+    with open(os.path.join(output_dir, "run_summary.json"), "w") as handle:
+        json.dump(summary, handle, indent=2)
+
+    print("=" * 78)
+    print(
+        f"DONE {config.task.name}: {summary['episodes_ok']}/{len(records)} episodes, "
+        f"{total_frames} frames in {run_s / 60:.1f} min ({summary['fps']:.2f} fps) on {gpu}"
+    )
+    print("stage totals: " + stage_timer.format_line(stage_sum, run_s))
+    print(f"summary -> {os.path.join(output_dir, 'run_summary.json')}")
+    print("=" * 78)
+    return summary
 
 
 if __name__ == "__main__":

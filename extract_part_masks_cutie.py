@@ -10,6 +10,12 @@ from PIL import Image
 from torchvision import transforms
 from torchvision.transforms import InterpolationMode
 from torchvision.transforms.functional import to_tensor
+from tqdm import tqdm
+
+try:
+    from .stage_timer import stage
+except ImportError:
+    from stage_timer import stage
 
 
 def _indexed_get(mapping, index, default=None):
@@ -103,6 +109,8 @@ class GroundedSAMDetector:
         # tracker dumps this per (episode, frame, class) when saving is on, so
         # the detect-stage output is inspectable, not just the final boxes.
         self.last_raw = None
+        # (box_xyxy, confidence) that survived filtering and was sent to SAM.
+        self.last_accepted = None
 
     def detect_class(
         self,
@@ -110,7 +118,8 @@ class GroundedSAMDetector:
         class_index: int,
         occupied_masks,
     ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[float]]:
-        with torch.inference_mode():
+        self.last_accepted = None
+        with torch.inference_mode(), stage("detect"):
             detections = self.grounding_dino.predict_with_classes(
                 image=image_bgr,
                 classes=[self.classes[class_index]],
@@ -168,8 +177,9 @@ class GroundedSAMDetector:
             return None, None, None
 
         box, confidence = accepted[0]
-        self.sam_predictor.set_image(cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB))
-        with torch.inference_mode():
+        self.last_accepted = (box, confidence)
+        with torch.inference_mode(), stage("segment"):
+            self.sam_predictor.set_image(cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB))
             masks, scores, _ = self.sam_predictor.predict(
                 box=box,
                 multimask_output=False,
@@ -190,6 +200,10 @@ class TrackerBase:
         self.save_annotations = bool(save_annotations)
         self.save_masks = bool(save_masks)
         self.episode_num = 0
+        # One entry per (class, frame) where GroundingDINO+SAM seeded Cutie.
+        self.seed_events = []
+        # Optional RerunLogger (set by HODORProcessor when output.save_rerun).
+        self.viz = None
         # Per-stage output folders, one per model in the pipeline. Every
         # artifact lands in the folder for the stage that produced it, so the
         # run is organized by step instead of by encoded filename:
@@ -206,7 +220,7 @@ class TrackerBase:
     def _empty_output(self, shape):
         return np.full(shape, self.background_label, dtype=np.int32)
 
-    def _save_mask(self, class_mask, frame_index, class_index, suffix):
+    def _save_mask(self, class_mask, frame_index, class_index, suffix, image_bgr=None):
         # SAM's seed mask (init frame) is the segment stage -> step2_segment;
         # Cutie's propagated masks are the track stage -> step3_track.
         if not self.save_masks:
@@ -219,22 +233,69 @@ class TrackerBase:
             f"{self.episode_num}_{frame_index}_{class_index}_{kind}.png",
         )
         Image.fromarray((class_mask.astype(np.uint8) * 255)).save(path)
+        if is_seed and image_bgr is not None and self.save_annotations:
+            # Human-readable SAM output: mask shaded + outlined on the frame.
+            vis = image_bgr.copy()
+            vis[class_mask] = (
+                0.5 * vis[class_mask].astype(np.float32)
+                + 0.5 * np.asarray((0, 255, 0), dtype=np.float32)
+            ).astype(np.uint8)
+            contours, _ = cv2.findContours(
+                class_mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+            )
+            cv2.drawContours(vis, contours, -1, (0, 255, 0), 1)
+            cv2.putText(
+                vis,
+                f"SAM: {self.classes[class_index]} ({int(class_mask.sum())} px)",
+                (5, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA,
+            )
+            cv2.imwrite(path.replace("_seed.png", "_seed_overlay.png"), vis)
 
-    def _save_detections(self, raw, frame_index):
+    def _save_detections(self, raw, frame_index, image_bgr=None, accepted=None):
         # Persist the raw GroundingDINO detect-stage output (all candidate
         # boxes + confidences before filtering) as a small .npz in step1_detect,
         # keyed by episode/frame/class. Gated by save_masks so it rides along
-        # with the other per-frame intermediates. `raw` is detector.last_raw.
+        # with the other per-frame intermediates. `raw` is detector.last_raw;
+        # `accepted` is detector.last_accepted (the box handed to SAM, if any).
         if not self.save_masks or not raw:
             return
+        stem = f"{self.episode_num}_{frame_index}_{raw['class_index']}"
         np.savez(
-            os.path.join(
-                self.dir_detect,
-                f"{self.episode_num}_{frame_index}_{raw['class_index']}.npz",
-            ),
+            os.path.join(self.dir_detect, f"{stem}.npz"),
             xyxy=raw["xyxy"],
             confidence=raw["confidence"],
+            accepted_xyxy=np.asarray(
+                accepted[0] if accepted is not None else [], dtype=np.float32
+            ),
+            accepted_confidence=np.float32(
+                accepted[1] if accepted is not None else np.nan
+            ),
         )
+        # Annotated image: all raw candidates (orange, with confidence) and the
+        # accepted box (green). Skipped when GroundingDINO returned nothing.
+        if image_bgr is None or not self.save_annotations or len(raw["xyxy"]) == 0:
+            return
+        vis = image_bgr.copy()
+        for box, conf in zip(raw["xyxy"], raw["confidence"]):
+            x0, y0, x1, y1 = [int(round(float(v))) for v in box]
+            cv2.rectangle(vis, (x0, y0), (x1, y1), (0, 165, 255), 1)
+            cv2.putText(
+                vis, f"{float(conf):.2f}", (x0 + 2, max(y0 + 12, 12)),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 165, 255), 1, cv2.LINE_AA,
+            )
+        if accepted is not None:
+            x0, y0, x1, y1 = [int(v) for v in accepted[0]]
+            cv2.rectangle(vis, (x0, y0), (x1, y1), (0, 255, 0), 2)
+        label = (
+            f"GDINO: {self.classes[raw['class_index']]}  "
+            f"raw={len(raw['confidence'])}  "
+            f"accepted={'yes' if accepted is not None else 'no'}"
+        )
+        cv2.putText(
+            vis, label, (5, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.45,
+            (255, 255, 255), 1, cv2.LINE_AA,
+        )
+        cv2.imwrite(os.path.join(self.dir_detect, f"{stem}_boxes.png"), vis)
 
     def _save_overlay(self, image_bgr, label_mask, frame_index):
         if not self.save_annotations:
@@ -314,6 +375,7 @@ class CutieTracker(TrackerBase):
     def reset(self):
         self.detected = [False] * self.num_classes
         self.processors = self._new_processors()
+        self.seed_events = []
 
     def process(self, image_bgr, frame_index):
         if frame_index == 0:
@@ -330,7 +392,7 @@ class CutieTracker(TrackerBase):
                 # processor. An empty mask means that the object is currently
                 # absent; it must not reset the processor or trigger a new
                 # GroundingDINO/SAM initialization on the same frame.
-                with torch.inference_mode():
+                with torch.inference_mode(), stage("track"):
                     probability = self.processors[class_index].step(rgb)
                     tracked = (
                         self.processors[class_index]
@@ -350,18 +412,47 @@ class CutieTracker(TrackerBase):
             if frame_index > 0 and self._skip_late_detection(class_index):
                 continue
 
-            detected_mask, _, _ = self.detector.detect_class(
+            detected_mask, detected_box, detected_conf = self.detector.detect_class(
                 image_bgr,
                 class_index,
                 occupied_masks,
             )
-            self._save_detections(self.detector.last_raw, frame_index)
+            self._save_detections(
+                self.detector.last_raw,
+                frame_index,
+                image_bgr,
+                self.detector.last_accepted,
+            )
+            if self.viz is not None:
+                self.viz.log_detection(
+                    class_index, self.detector.last_raw, self.detector.last_accepted
+                )
             if detected_mask is None:
                 continue
+            # step2: the raw SAM mask that seeds Cutie.
+            self._save_mask(detected_mask, frame_index, class_index, "sam_seed", image_bgr)
+            num_raw = len(self.detector.last_raw["xyxy"]) if self.detector.last_raw else 0
+            event = {
+                "class": self.classes[class_index],
+                "frame": int(frame_index),
+                "gdino_raw_boxes": int(num_raw),
+                "gdino_conf": round(float(detected_conf), 3),
+                "box_xyxy": [int(v) for v in detected_box],
+                "sam_mask_px": int(detected_mask.sum()),
+            }
+            self.seed_events.append(event)
+            if self.viz is not None:
+                self.viz.log_sam_seed(class_index, detected_mask, event)
+            tqdm.write(
+                f"    [ep {self.episode_num} f{frame_index}] "
+                f"GroundingDINO '{event['class']}': {num_raw} raw box(es), "
+                f"kept conf={event['gdino_conf']:.2f} box={event['box_xyxy']} "
+                f"-> SAM mask {event['sam_mask_px']} px -> Cutie seeded"
+            )
 
             # Initialize CUTIE on whichever frame the class is first found.
             seed = torch.from_numpy(detected_mask.astype(np.uint8)).cuda().long()
-            with torch.inference_mode():
+            with torch.inference_mode(), stage("track"):
                 probability = self.processors[class_index].step(
                     rgb,
                     seed,
@@ -381,7 +472,8 @@ class CutieTracker(TrackerBase):
             self.detected[class_index] = True
             output[initialized] = class_index
             occupied_masks.append(initialized.copy())
-            self._save_mask(initialized, frame_index, class_index, "cutie_seed")
+            # step3: Cutie's own mask on the init frame (propagated after this).
+            self._save_mask(initialized, frame_index, class_index, "cutie_mask")
 
         self._save_overlay(image_bgr, output, frame_index)
         return output

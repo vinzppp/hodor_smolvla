@@ -5,8 +5,10 @@ numpy
 omegaconf
 opencv-python
 Pillow
+matplotlib
 scipy
 timm
 torch
 torchvision
 tqdm
+rerun-sdk==0.37.2
