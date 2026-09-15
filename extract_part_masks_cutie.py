@@ -190,31 +190,47 @@ class TrackerBase:
         self.save_annotations = bool(save_annotations)
         self.save_masks = bool(save_masks)
         self.episode_num = 0
-        os.makedirs(self.output_dir, exist_ok=True)
+        # Per-stage output folders, one per model in the pipeline. Every
+        # artifact lands in the folder for the stage that produced it, so the
+        # run is organized by step instead of by encoded filename:
+        #   step1_detect   raw GroundingDINO candidate boxes  (.npz)
+        #   step2_segment  SAM masks that seed tracking        (.png)
+        #   step3_track    Cutie-propagated masks + overlays   (.png)
+        #   step4_embed    final DINO arrays (written by post_process)
+        self.dir_detect = os.path.join(self.output_dir, "step1_detect")
+        self.dir_segment = os.path.join(self.output_dir, "step2_segment")
+        self.dir_track = os.path.join(self.output_dir, "step3_track")
+        for _d in (self.output_dir, self.dir_detect, self.dir_segment, self.dir_track):
+            os.makedirs(_d, exist_ok=True)
 
     def _empty_output(self, shape):
         return np.full(shape, self.background_label, dtype=np.int32)
 
     def _save_mask(self, class_mask, frame_index, class_index, suffix):
+        # SAM's seed mask (init frame) is the segment stage -> step2_segment;
+        # Cutie's propagated masks are the track stage -> step3_track.
         if not self.save_masks:
             return
+        is_seed = "seed" in suffix
+        stage_dir = self.dir_segment if is_seed else self.dir_track
+        kind = "seed" if is_seed else "mask"
         path = os.path.join(
-            self.output_dir,
-            f"{self.episode_num}_{frame_index}_{class_index}_{suffix}.png",
+            stage_dir,
+            f"{self.episode_num}_{frame_index}_{class_index}_{kind}.png",
         )
         Image.fromarray((class_mask.astype(np.uint8) * 255)).save(path)
 
     def _save_detections(self, raw, frame_index):
         # Persist the raw GroundingDINO detect-stage output (all candidate
-        # boxes + confidences before filtering) as a small .npz, keyed by
-        # episode/frame/class. Gated by save_masks so it rides along with the
-        # other per-frame intermediates. `raw` is the detector's last_raw dict.
+        # boxes + confidences before filtering) as a small .npz in step1_detect,
+        # keyed by episode/frame/class. Gated by save_masks so it rides along
+        # with the other per-frame intermediates. `raw` is detector.last_raw.
         if not self.save_masks or not raw:
             return
         np.savez(
             os.path.join(
-                self.output_dir,
-                f"{self.episode_num}_{frame_index}_{raw['class_index']}_detections.npz",
+                self.dir_detect,
+                f"{self.episode_num}_{frame_index}_{raw['class_index']}.npz",
             ),
             xyxy=raw["xyxy"],
             confidence=raw["confidence"],
@@ -242,7 +258,7 @@ class TrackerBase:
             ).astype(np.uint8)
         cv2.imwrite(
             os.path.join(
-                self.output_dir,
+                self.dir_track,
                 f"{self.episode_num}_{frame_index}_overlay.png",
             ),
             overlay,

@@ -525,23 +525,31 @@ def process_episode(processor, config, episode_path, episode_num):
 
     if not episode_pr:
         return False
-    np.save(os.path.join(episode_path, "episode_pr.npy"), np.asarray(episode_pr))
+    # Final embed-stage arrays go in step4_embed/<episode>/ under output_dir,
+    # so every stage of a run lives together under one folder tree.
+    embed_dir = os.path.join(
+        config.output.output_dir,
+        "step4_embed",
+        os.path.basename(os.path.normpath(episode_path)),
+    )
+    os.makedirs(embed_dir, exist_ok=True)
+    np.save(os.path.join(embed_dir, "episode_pr.npy"), np.asarray(episode_pr))
     np.save(
-        os.path.join(episode_path, "episode_bboxes.npy"),
+        os.path.join(embed_dir, "episode_bboxes.npy"),
         np.asarray(episode_bboxes),
     )
     if episode_pr_separated:
         np.save(
-            os.path.join(episode_path, "episode_pr_seperated.npy"),
+            os.path.join(embed_dir, "episode_pr_seperated.npy"),
             np.asarray(episode_pr_separated),
         )
         np.save(
-            os.path.join(episode_path, "episode_bboxes_seperated.npy"),
+            os.path.join(embed_dir, "episode_bboxes_seperated.npy"),
             np.asarray(episode_bboxes_separated),
         )
     if episode_dino_full:
         np.save(
-            os.path.join(episode_path, "episode_dino_full.npy"),
+            os.path.join(embed_dir, "episode_dino_full.npy"),
             np.asarray(episode_dino_full),
         )
     return True
