@@ -1,0 +1,919 @@
+{
+  "task": "pineapple_llm",
+  "config": "/workspace/scene-graph-robot/configs/pineapple_llm.yaml",
+  "device": "NVIDIA GeForce RTX 4090",
+  "torch": "2.8.0+cu128",
+  "classes": [
+    "pineapple.",
+    "bowl."
+  ],
+  "backbone": "dino-vit-b16",
+  "episodes_ok": 10,
+  "episodes_total": 10,
+  "frames_total": 1282,
+  "model_load_s": 20.14,
+  "run_s": 195.21,
+  "fps": 6.567,
+  "stages": {
+    "load": {
+      "seconds": 22.32,
+      "calls": 10
+    },
+    "preprocess": {
+      "seconds": 17.86,
+      "calls": 1282
+    },
+    "detect": {
+      "seconds": 4.999,
+      "calls": 88
+    },
+    "segment": {
+      "seconds": 4.431,
+      "calls": 20
+    },
+    "track": {
+      "seconds": 19.435,
+      "calls": 2496
+    },
+    "centroid": {
+      "seconds": 6.305,
+      "calls": 1282
+    },
+    "embed": {
+      "seconds": 5.079,
+      "calls": 1282
+    }
+  },
+  "episodes": [
+    {
+      "episode_index": 0,
+      "episode": "Mon_Sep_22_01:32:36_2025",
+      "ok": true,
+      "wall_s": 23.03,
+      "stages": {
+        "load": {
+          "seconds": 2.819,
+          "calls": 1
+        },
+        "preprocess": {
+          "seconds": 1.914,
+          "calls": 140
+        },
+        "detect": {
+          "seconds": 0.423,
+          "calls": 2
+        },
+        "segment": {
+          "seconds": 0.472,
+          "calls": 2
+        },
+        "track": {
+          "seconds": 2.245,
+          "calls": 280
+        },
+        "centroid": {
+          "seconds": 0.696,
+          "calls": 140
+        },
+        "embed": {
+          "seconds": 0.619,
+          "calls": 140
+        }
+      },
+      "seed_events": [
+        {
+          "class": "pineapple.",
+          "frame": 0,
+          "gdino_raw_boxes": 2,
+          "gdino_conf": 0.421,
+          "box_xyxy": [
+            342,
+            160,
+            439,
+            241
+          ],
+          "sam_mask_px": 5634
+        },
+        {
+          "class": "bowl.",
+          "frame": 0,
+          "gdino_raw_boxes": 1,
+          "gdino_conf": 0.785,
+          "box_xyxy": [
+            98,
+            230,
+            285,
+            422
+          ],
+          "sam_mask_px": 27292
+        }
+      ],
+      "peak_gpu_mem_gb": 7.21,
+      "frames": 140,
+      "rerun_file": "./hodor_output/pineapple_llm/rerun/ep0_Mon_Sep_22_01-32-36_2025.rrd",
+      "pr_shape": [
+        140,
+        3,
+        768
+      ],
+      "bboxes_shape": [
+        140,
+        3,
+        7
+      ],
+      "presence": {
+        "pineapple.": 1.0,
+        "bowl.": 0.507
+      },
+      "dino_full_shape": [
+        140,
+        1,
+        196,
+        768
+      ]
+    },
+    {
+      "episode_index": 1,
+      "episode": "Mon_Sep_22_01:32:10_2025",
+      "ok": true,
+      "wall_s": 16.42,
+      "stages": {
+        "load": {
+          "seconds": 1.861,
+          "calls": 1
+        },
+        "preprocess": {
+          "seconds": 1.66,
+          "calls": 118
+        },
+        "detect": {
+          "seconds": 0.41,
+          "calls": 8
+        },
+        "segment": {
+          "seconds": 0.44,
+          "calls": 2
+        },
+        "track": {
+          "seconds": 1.764,
+          "calls": 230
+        },
+        "centroid": {
+          "seconds": 0.563,
+          "calls": 118
+        },
+        "embed": {
+          "seconds": 0.449,
+          "calls": 118
+        }
+      },
+      "seed_events": [
+        {
+          "class": "bowl.",
+          "frame": 0,
+          "gdino_raw_boxes": 1,
+          "gdino_conf": 0.804,
+          "box_xyxy": [
+            28,
+            154,
+            204,
+            321
+          ],
+          "sam_mask_px": 22228
+        },
+        {
+          "class": "pineapple.",
+          "frame": 6,
+          "gdino_raw_boxes": 2,
+          "gdino_conf": 0.313,
+          "box_xyxy": [
+            300,
+            225,
+            403,
+            305
+          ],
+          "sam_mask_px": 6256
+        }
+      ],
+      "peak_gpu_mem_gb": 7.21,
+      "frames": 118,
+      "rerun_file": "./hodor_output/pineapple_llm/rerun/ep1_Mon_Sep_22_01-32-10_2025.rrd",
+      "pr_shape": [
+        118,
+        3,
+        768
+      ],
+      "bboxes_shape": [
+        118,
+        3,
+        7
+      ],
+      "presence": {
+        "pineapple.": 0.949,
+        "bowl.": 0.517
+      },
+      "dino_full_shape": [
+        118,
+        1,
+        196,
+        768
+      ]
+    },
+    {
+      "episode_index": 2,
+      "episode": "Mon_Sep_22_01:31:41_2025",
+      "ok": true,
+      "wall_s": 19.58,
+      "stages": {
+        "load": {
+          "seconds": 2.169,
+          "calls": 1
+        },
+        "preprocess": {
+          "seconds": 1.833,
+          "calls": 134
+        },
+        "detect": {
+          "seconds": 0.975,
+          "calls": 19
+        },
+        "segment": {
+          "seconds": 0.439,
+          "calls": 2
+        },
+        "track": {
+          "seconds": 1.914,
+          "calls": 251
+        },
+        "centroid": {
+          "seconds": 0.589,
+          "calls": 134
+        },
+        "embed": {
+          "seconds": 0.506,
+          "calls": 134
+        }
+      },
+      "seed_events": [
+        {
+          "class": "bowl.",
+          "frame": 0,
+          "gdino_raw_boxes": 1,
+          "gdino_conf": 0.732,
+          "box_xyxy": [
+            53,
+            274,
+            245,
+            426
+          ],
+          "sam_mask_px": 23779
+        },
+        {
+          "class": "pineapple.",
+          "frame": 17,
+          "gdino_raw_boxes": 1,
+          "gdino_conf": 0.319,
+          "box_xyxy": [
+            194,
+            128,
+            287,
+            219
+          ],
+          "sam_mask_px": 4693
+        }
+      ],
+      "peak_gpu_mem_gb": 7.21,
+      "frames": 134,
+      "rerun_file": "./hodor_output/pineapple_llm/rerun/ep2_Mon_Sep_22_01-31-41_2025.rrd",
+      "pr_shape": [
+        134,
+        3,
+        768
+      ],
+      "bboxes_shape": [
+        134,
+        3,
+        7
+      ],
+      "presence": {
+        "pineapple.": 0.873,
+        "bowl.": 0.507
+      },
+      "dino_full_shape": [
+        134,
+        1,
+        196,
+        768
+      ]
+    },
+    {
+      "episode_index": 3,
+      "episode": "Mon_Sep_22_01:31:20_2025",
+      "ok": true,
+      "wall_s": 18.54,
+      "stages": {
+        "load": {
+          "seconds": 2.316,
+          "calls": 1
+        },
+        "preprocess": {
+          "seconds": 1.903,
+          "calls": 135
+        },
+        "detect": {
+          "seconds": 0.105,
+          "calls": 2
+        },
+        "segment": {
+          "seconds": 0.441,
+          "calls": 2
+        },
+        "track": {
+          "seconds": 2.091,
+          "calls": 270
+        },
+        "centroid": {
+          "seconds": 0.621,
+          "calls": 135
+        },
+        "embed": {
+          "seconds": 0.533,
+          "calls": 135
+        }
+      },
+      "seed_events": [
+        {
+          "class": "pineapple.",
+          "frame": 0,
+          "gdino_raw_boxes": 1,
+          "gdino_conf": 0.308,
+          "box_xyxy": [
+            359,
+            295,
+            448,
+            382
+          ],
+          "sam_mask_px": 6361
+        },
+        {
+          "class": "bowl.",
+          "frame": 0,
+          "gdino_raw_boxes": 1,
+          "gdino_conf": 0.83,
+          "box_xyxy": [
+            26,
+            151,
+            202,
+            320
+          ],
+          "sam_mask_px": 22453
+        }
+      ],
+      "peak_gpu_mem_gb": 7.21,
+      "frames": 135,
+      "rerun_file": "./hodor_output/pineapple_llm/rerun/ep3_Mon_Sep_22_01-31-20_2025.rrd",
+      "pr_shape": [
+        135,
+        3,
+        768
+      ],
+      "bboxes_shape": [
+        135,
+        3,
+        7
+      ],
+      "presence": {
+        "pineapple.": 1.0,
+        "bowl.": 0.511
+      },
+      "dino_full_shape": [
+        135,
+        1,
+        196,
+        768
+      ]
+    },
+    {
+      "episode_index": 4,
+      "episode": "Mon_Sep_22_01:31:00_2025",
+      "ok": true,
+      "wall_s": 22.69,
+      "stages": {
+        "load": {
+          "seconds": 2.3,
+          "calls": 1
+        },
+        "preprocess": {
+          "seconds": 1.815,
+          "calls": 131
+        },
+        "detect": {
+          "seconds": 1.491,
+          "calls": 26
+        },
+        "segment": {
+          "seconds": 0.44,
+          "calls": 2
+        },
+        "track": {
+          "seconds": 1.931,
+          "calls": 238
+        },
+        "centroid": {
+          "seconds": 0.702,
+          "calls": 131
+        },
+        "embed": {
+          "seconds": 0.542,
+          "calls": 131
+        }
+      },
+      "seed_events": [
+        {
+          "class": "bowl.",
+          "frame": 0,
+          "gdino_raw_boxes": 1,
+          "gdino_conf": 0.791,
+          "box_xyxy": [
+            87,
+            244,
+            275,
+            425
+          ],
+          "sam_mask_px": 27052
+        },
+        {
+          "class": "pineapple.",
+          "frame": 24,
+          "gdino_raw_boxes": 1,
+          "gdino_conf": 0.331,
+          "box_xyxy": [
+            233,
+            167,
+            325,
+            275
+          ],
+          "sam_mask_px": 7234
+        }
+      ],
+      "peak_gpu_mem_gb": 7.21,
+      "frames": 131,
+      "rerun_file": "./hodor_output/pineapple_llm/rerun/ep4_Mon_Sep_22_01-31-00_2025.rrd",
+      "pr_shape": [
+        131,
+        3,
+        768
+      ],
+      "bboxes_shape": [
+        131,
+        3,
+        7
+      ],
+      "presence": {
+        "pineapple.": 0.817,
+        "bowl.": 0.557
+      },
+      "dino_full_shape": [
+        131,
+        1,
+        196,
+        768
+      ]
+    },
+    {
+      "episode_index": 5,
+      "episode": "Mon_Sep_22_01:30:38_2025",
+      "ok": true,
+      "wall_s": 21.6,
+      "stages": {
+        "load": {
+          "seconds": 2.235,
+          "calls": 1
+        },
+        "preprocess": {
+          "seconds": 1.891,
+          "calls": 138
+        },
+        "detect": {
+          "seconds": 0.566,
+          "calls": 11
+        },
+        "segment": {
+          "seconds": 0.439,
+          "calls": 2
+        },
+        "track": {
+          "seconds": 2.086,
+          "calls": 267
+        },
+        "centroid": {
+          "seconds": 0.686,
+          "calls": 138
+        },
+        "embed": {
+          "seconds": 0.54,
+          "calls": 138
+        }
+      },
+      "seed_events": [
+        {
+          "class": "bowl.",
+          "frame": 0,
+          "gdino_raw_boxes": 1,
+          "gdino_conf": 0.731,
+          "box_xyxy": [
+            169,
+            123,
+            340,
+            281
+          ],
+          "sam_mask_px": 18153
+        },
+        {
+          "class": "pineapple.",
+          "frame": 9,
+          "gdino_raw_boxes": 1,
+          "gdino_conf": 0.312,
+          "box_xyxy": [
+            359,
+            196,
+            447,
+            291
+          ],
+          "sam_mask_px": 6595
+        }
+      ],
+      "peak_gpu_mem_gb": 7.21,
+      "frames": 138,
+      "rerun_file": "./hodor_output/pineapple_llm/rerun/ep5_Mon_Sep_22_01-30-38_2025.rrd",
+      "pr_shape": [
+        138,
+        3,
+        768
+      ],
+      "bboxes_shape": [
+        138,
+        3,
+        7
+      ],
+      "presence": {
+        "pineapple.": 0.935,
+        "bowl.": 0.601
+      },
+      "dino_full_shape": [
+        138,
+        1,
+        196,
+        768
+      ]
+    },
+    {
+      "episode_index": 6,
+      "episode": "Mon_Sep_22_01:30:18_2025",
+      "ok": true,
+      "wall_s": 17.41,
+      "stages": {
+        "load": {
+          "seconds": 1.549,
+          "calls": 1
+        },
+        "preprocess": {
+          "seconds": 1.428,
+          "calls": 103
+        },
+        "detect": {
+          "seconds": 0.102,
+          "calls": 2
+        },
+        "segment": {
+          "seconds": 0.439,
+          "calls": 2
+        },
+        "track": {
+          "seconds": 1.574,
+          "calls": 206
+        },
+        "centroid": {
+          "seconds": 0.531,
+          "calls": 103
+        },
+        "embed": {
+          "seconds": 0.407,
+          "calls": 103
+        }
+      },
+      "seed_events": [
+        {
+          "class": "pineapple.",
+          "frame": 0,
+          "gdino_raw_boxes": 2,
+          "gdino_conf": 0.319,
+          "box_xyxy": [
+            121,
+            199,
+            205,
+            298
+          ],
+          "sam_mask_px": 6011
+        },
+        {
+          "class": "bowl.",
+          "frame": 0,
+          "gdino_raw_boxes": 1,
+          "gdino_conf": 0.725,
+          "box_xyxy": [
+            313,
+            217,
+            448,
+            407
+          ],
+          "sam_mask_px": 20586
+        }
+      ],
+      "peak_gpu_mem_gb": 7.21,
+      "frames": 103,
+      "rerun_file": "./hodor_output/pineapple_llm/rerun/ep6_Mon_Sep_22_01-30-18_2025.rrd",
+      "pr_shape": [
+        103,
+        3,
+        768
+      ],
+      "bboxes_shape": [
+        103,
+        3,
+        7
+      ],
+      "presence": {
+        "pineapple.": 1.0,
+        "bowl.": 0.631
+      },
+      "dino_full_shape": [
+        103,
+        1,
+        196,
+        768
+      ]
+    },
+    {
+      "episode_index": 7,
+      "episode": "Mon_Sep_22_01:29:41_2025",
+      "ok": true,
+      "wall_s": 17.28,
+      "stages": {
+        "load": {
+          "seconds": 2.401,
+          "calls": 1
+        },
+        "preprocess": {
+          "seconds": 1.692,
+          "calls": 121
+        },
+        "detect": {
+          "seconds": 0.106,
+          "calls": 2
+        },
+        "segment": {
+          "seconds": 0.442,
+          "calls": 2
+        },
+        "track": {
+          "seconds": 1.881,
+          "calls": 242
+        },
+        "centroid": {
+          "seconds": 0.63,
+          "calls": 121
+        },
+        "embed": {
+          "seconds": 0.467,
+          "calls": 121
+        }
+      },
+      "seed_events": [
+        {
+          "class": "pineapple.",
+          "frame": 0,
+          "gdino_raw_boxes": 1,
+          "gdino_conf": 0.34,
+          "box_xyxy": [
+            284,
+            164,
+            363,
+            259
+          ],
+          "sam_mask_px": 5925
+        },
+        {
+          "class": "bowl.",
+          "frame": 0,
+          "gdino_raw_boxes": 1,
+          "gdino_conf": 0.832,
+          "box_xyxy": [
+            38,
+            163,
+            214,
+            334
+          ],
+          "sam_mask_px": 22885
+        }
+      ],
+      "peak_gpu_mem_gb": 7.21,
+      "frames": 121,
+      "rerun_file": "./hodor_output/pineapple_llm/rerun/ep7_Mon_Sep_22_01-29-41_2025.rrd",
+      "pr_shape": [
+        121,
+        3,
+        768
+      ],
+      "bboxes_shape": [
+        121,
+        3,
+        7
+      ],
+      "presence": {
+        "pineapple.": 1.0,
+        "bowl.": 0.579
+      },
+      "dino_full_shape": [
+        121,
+        1,
+        196,
+        768
+      ]
+    },
+    {
+      "episode_index": 8,
+      "episode": "Mon_Sep_22_01:28:51_2025",
+      "ok": true,
+      "wall_s": 19.55,
+      "stages": {
+        "load": {
+          "seconds": 2.131,
+          "calls": 1
+        },
+        "preprocess": {
+          "seconds": 1.925,
+          "calls": 136
+        },
+        "detect": {
+          "seconds": 0.101,
+          "calls": 2
+        },
+        "segment": {
+          "seconds": 0.439,
+          "calls": 2
+        },
+        "track": {
+          "seconds": 2.123,
+          "calls": 272
+        },
+        "centroid": {
+          "seconds": 0.647,
+          "calls": 136
+        },
+        "embed": {
+          "seconds": 0.529,
+          "calls": 136
+        }
+      },
+      "seed_events": [
+        {
+          "class": "pineapple.",
+          "frame": 0,
+          "gdino_raw_boxes": 2,
+          "gdino_conf": 0.519,
+          "box_xyxy": [
+            347,
+            182,
+            430,
+            278
+          ],
+          "sam_mask_px": 6174
+        },
+        {
+          "class": "bowl.",
+          "frame": 0,
+          "gdino_raw_boxes": 1,
+          "gdino_conf": 0.725,
+          "box_xyxy": [
+            38,
+            247,
+            229,
+            425
+          ],
+          "sam_mask_px": 27269
+        }
+      ],
+      "peak_gpu_mem_gb": 7.21,
+      "frames": 136,
+      "rerun_file": "./hodor_output/pineapple_llm/rerun/ep8_Mon_Sep_22_01-28-51_2025.rrd",
+      "pr_shape": [
+        136,
+        3,
+        768
+      ],
+      "bboxes_shape": [
+        136,
+        3,
+        7
+      ],
+      "presence": {
+        "pineapple.": 1.0,
+        "bowl.": 0.507
+      },
+      "dino_full_shape": [
+        136,
+        1,
+        196,
+        768
+      ]
+    },
+    {
+      "episode_index": 9,
+      "episode": "Mon_Sep_22_01:28:29_2025",
+      "ok": true,
+      "wall_s": 18.6,
+      "stages": {
+        "load": {
+          "seconds": 2.539,
+          "calls": 1
+        },
+        "preprocess": {
+          "seconds": 1.799,
+          "calls": 126
+        },
+        "detect": {
+          "seconds": 0.72,
+          "calls": 14
+        },
+        "segment": {
+          "seconds": 0.44,
+          "calls": 2
+        },
+        "track": {
+          "seconds": 1.826,
+          "calls": 240
+        },
+        "centroid": {
+          "seconds": 0.64,
+          "calls": 126
+        },
+        "embed": {
+          "seconds": 0.487,
+          "calls": 126
+        }
+      },
+      "seed_events": [
+        {
+          "class": "bowl.",
+          "frame": 0,
+          "gdino_raw_boxes": 1,
+          "gdino_conf": 0.838,
+          "box_xyxy": [
+            68,
+            153,
+            243,
+            323
+          ],
+          "sam_mask_px": 22480
+        },
+        {
+          "class": "pineapple.",
+          "frame": 12,
+          "gdino_raw_boxes": 2,
+          "gdino_conf": 0.406,
+          "box_xyxy": [
+            286,
+            175,
+            374,
+            275
+          ],
+          "sam_mask_px": 6591
+        }
+      ],
+      "peak_gpu_mem_gb": 7.21,
+      "frames": 126,
+      "rerun_file": "./hodor_output/pineapple_llm/rerun/ep9_Mon_Sep_22_01-28-29_2025.rrd",
+      "pr_shape": [
+        126,
+        3,
+        768
+      ],
+      "bboxes_shape": [
+        126,
+        3,
+        7
+      ],
+      "presence": {
+        "pineapple.": 0.905,
+        "bowl.": 0.563
+      },
+      "dino_full_shape": [
+        126,
+        1,
+        196,
+        768
+      ]
+    }
+  ]
+}

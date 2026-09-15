@@ -1,0 +1,25 @@
+output_dir: ./hodor_output/pineapple_llm
+classes   : ['pineapple.', 'bowl.']  (N=2 -> 3 slots)
+[step1_detect] 5.0MB
+    raw detections (.npz)         88 files  episodes [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    annotated boxes (.png)        30 files  episodes [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+[step2_segment] 3.2MB
+    SAM seed masks                20 files  episodes [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    SAM seed overlays             20 files  episodes [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+[step3_track] 222.2MB
+    Cutie class masks           1914 files  episodes [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    Cutie overlays              1282 files  episodes [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    GDINO 'pineapple.': 78 detect calls, 58 empty, 10 accepted -> SAM; mean kept conf 0.36
+    GDINO 'bowl.': 10 detect calls, 0 empty, 10 accepted -> SAM; mean kept conf 0.78
+[rerun] 10 timeline file(s), 58.9MB  (open: rerun <file>.rrd)
+[step4_embed] 747.5MB
+    ep0 Mon_Sep_22_01:32:36_2025: pr (140, 3, 768) bboxes (140, 3, 7) dino_full (140, 1, 196, 768) presence[100% 51%] OK
+    ep1 Mon_Sep_22_01:32:10_2025: pr (118, 3, 768) bboxes (118, 3, 7) dino_full (118, 1, 196, 768) presence[95% 52%] OK
+    ep2 Mon_Sep_22_01:31:41_2025: pr (134, 3, 768) bboxes (134, 3, 7) dino_full (134, 1, 196, 768) presence[87% 51%] OK
+    ep3 Mon_Sep_22_01:31:20_2025: pr (135, 3, 768) bboxes (135, 3, 7) dino_full (135, 1, 196, 768) presence[100% 51%] OK
+    ep4 Mon_Sep_22_01:31:00_2025: pr (131, 3, 768) bboxes (131, 3, 7) dino_full (131, 1, 196, 768) presence[82% 56%] OK
+    ep5 Mon_Sep_22_01:30:38_2025: pr (138, 3, 768) bboxes (138, 3, 7) dino_full (138, 1, 196, 768) presence[93% 60%] OK
+    ep6 Mon_Sep_22_01:30:18_2025: pr (103, 3, 768) bboxes (103, 3, 7) dino_full (103, 1, 196, 768) presence[100% 63%] OK
+    ep7 Mon_Sep_22_01:29:41_2025: pr (121, 3, 768) bboxes (121, 3, 7) dino_full (121, 1, 196, 768) presence[100% 58%] OK
+    ep8 Mon_Sep_22_01:28:51_2025: pr (136, 3, 768) bboxes (136, 3, 7) dino_full (136, 1, 196, 768) presence[100% 51%] OK
+    ep9 Mon_Sep_22_01:28:29_2025: pr (126, 3, 768) bboxes (126, 3, 7) dino_full (126, 1, 196, 768) presence[90% 56%] OK

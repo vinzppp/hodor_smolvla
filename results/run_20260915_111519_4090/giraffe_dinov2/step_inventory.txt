@@ -1,0 +1,25 @@
+output_dir: ./hodor_output/giraffe_dinov2
+classes   : ['yellow.pineapple.', 'toy.giraffe.']  (N=2 -> 3 slots)
+[step1_detect] 109.2MB
+    raw detections (.npz)        786 files  episodes [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    annotated boxes (.png)       598 files  episodes [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+[step2_segment] 3.9MB
+    SAM seed masks                20 files  episodes [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    SAM seed overlays             20 files  episodes [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+[step3_track] 600.6MB
+    Cutie class masks           2862 files  episodes [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    Cutie overlays              3142 files  episodes [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    GDINO 'yellow.pineapple.': 10 detect calls, 0 empty, 10 accepted -> SAM; mean kept conf 0.67
+    GDINO 'toy.giraffe.': 776 detect calls, 188 empty, 10 accepted -> SAM; mean kept conf 0.55
+[rerun] 10 timeline file(s), 143.5MB  (open: rerun <file>.rrd)
+[step4_embed] 2.3GB
+    ep0 Sat_Sep_27_12:36:12_2025: pr (280, 3, 768) bboxes (280, 3, 7) dino_full (280, 1, 256, 768) presence[68% 35%] OK
+    ep1 Sat_Sep_27_12:35:38_2025: pr (250, 3, 768) bboxes (250, 3, 7) dino_full (250, 1, 256, 768) presence[58% 13%] OK
+    ep2 Sat_Sep_27_12:34:57_2025: pr (279, 3, 768) bboxes (279, 3, 7) dino_full (279, 1, 256, 768) presence[78% 20%] OK
+    ep3 Sat_Sep_27_12:34:09_2025: pr (228, 3, 768) bboxes (228, 3, 7) dino_full (228, 1, 256, 768) presence[73% 13%] OK
+    ep4 Sat_Sep_27_12:33:24_2025: pr (281, 3, 768) bboxes (281, 3, 7) dino_full (281, 1, 256, 768) presence[76% 15%] OK
+    ep5 Sat_Sep_27_12:32:23_2025: pr (288, 3, 768) bboxes (288, 3, 7) dino_full (288, 1, 256, 768) presence[61% 29%] OK
+    ep6 Sat_Sep_27_12:19:31_2025: pr (416, 3, 768) bboxes (416, 3, 7) dino_full (416, 1, 256, 768) presence[53% 32%] OK
+    ep7 Sat_Sep_27_12:18:40_2025: pr (404, 3, 768) bboxes (404, 3, 7) dino_full (404, 1, 256, 768) presence[68% 20%] OK
+    ep8 Sat_Sep_27_12:17:14_2025: pr (389, 3, 768) bboxes (389, 3, 7) dino_full (389, 1, 256, 768) presence[71% 30%] OK
+    ep9 Sat_Sep_27_12:15:37_2025: pr (327, 3, 768) bboxes (327, 3, 7) dino_full (327, 1, 256, 768) presence[60% 33%] OK

@@ -1,0 +1,13 @@
+{
+  "instruction": "pick up the pineapple and place it in the bowl",
+  "provider": "openrouter",
+  "model": "openai/gpt-4o-mini",
+  "entities": [
+    "pineapple",
+    "bowl"
+  ],
+  "classes": [
+    "pineapple.",
+    "bowl."
+  ]
+}
