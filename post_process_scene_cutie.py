@@ -56,12 +56,23 @@ class HODORProcessor:
         self.num_classes = len(self.classes)
         self.feature_dim = int(config.model.get("feature_dim", 768))
 
-        self.vit_encoder, _ = get_vit(
+        vit_model = str(config.model.vit_model)
+        if not vit_model.startswith("dinov2"):
+            print(
+                f"WARNING: model.vit_model={vit_model!r} is not DINOv2; the paper "
+                "(and this repo's default) uses DINOv2 ViT-B/14."
+            )
+        self.vit_encoder, encoder_dim = get_vit(
             config.paths.home_path,
-            config.model.vit_model,
+            vit_model,
             int(config.model.vit_image_size),
             global_pool=True,
         )
+        if encoder_dim != self.feature_dim:
+            raise ValueError(
+                f"model.feature_dim={self.feature_dim} but {vit_model} outputs "
+                f"{encoder_dim}-d features; set feature_dim: {encoder_dim}"
+            )
         self.vit_encoder.cuda()
         self.vit_encoder.eval()
         self.vit_encoder.freeze()

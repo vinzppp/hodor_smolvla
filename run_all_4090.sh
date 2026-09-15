@@ -16,7 +16,7 @@
 #   bash run_all_4090.sh 2>&1 | tee /workspace/run_all_4090.console.log   # or inside tmux
 #
 # Knobs (env vars):
-#   CONFIGS="giraffe pineapple_llm giraffe_dinov2"   which configs, in order
+#   CONFIGS="giraffe pineapple_llm"                  which configs, in order (both DINOv2)
 #   BRANCH=feature/section3.1-faithful               fork branch to overlay
 #   ALLOW_ANY_GPU=1                                  skip the "is this a 4090" check
 #   SKIP_SETUP=1                                     env already built on this pod
@@ -39,7 +39,7 @@ set -uo pipefail
 WS="${WS:-/workspace}"
 REPO="${REPO:-$WS/scene-graph-robot}"
 BRANCH="${BRANCH:-feature/section3.1-faithful}"
-CONFIGS="${CONFIGS:-giraffe pineapple_llm giraffe_dinov2}"
+CONFIGS="${CONFIGS:-giraffe pineapple_llm}"
 STORYBOARD_EPISODES="${STORYBOARD_EPISODES:-all}"
 export TORCH_CUDA_ARCH_LIST=8.9            # RTX 4090 = Ada = sm_89
 export PYTHONUNBUFFERED=1
@@ -95,9 +95,9 @@ log "upstream rev: $(git rev-parse --short HEAD)   fork/$BRANCH rev: $(git rev-p
 SAMPLE="$(find data -name trajectory.h5 | head -1)"
 SIZE=$(stat -c %s "$SAMPLE" 2>/dev/null || echo 0)
 [ "$SIZE" -gt 10000 ] || die "$SAMPLE is ${SIZE} bytes — looks like an LFS pointer, data missing"
-for w in pretrained/groundingdino_swint_ogc.pth pretrained/dino_vitbase16_pretrain.pth; do
-  [ "$(stat -c %s "$w" 2>/dev/null || echo 0)" -gt 1000000 ] || die "$w missing or LFS pointer"
-done
+# (DINOv2 weights come from torch.hub via setup_gpu.sh, not from pretrained/.)
+W=pretrained/groundingdino_swint_ogc.pth
+[ "$(stat -c %s "$W" 2>/dev/null || echo 0)" -gt 1000000 ] || die "$W missing or LFS pointer"
 log "data + weights look real (e.g. $SAMPLE = $((SIZE/1024)) KB)"
 
 # -----------------------------------------------------------------------------

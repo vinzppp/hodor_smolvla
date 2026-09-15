@@ -39,11 +39,14 @@ with `source: manual`, behave exactly as before.
 
 `dinov2_encoder.py` + `vit.py` — `get_vit` returns a `DINOv2Encoder` for any
 `model.vit_model` starting with `dinov2` (`dinov2-vit-s14/b14/l14/g14`), keeping
-the existing `(global, patch)` interface. The DINO-v1 path is untouched.
+the existing `(global, patch)` interface. **DINOv2 ViT-B/14 is now the default
+backbone for all configs** (`configs/base.yaml`); DINO-v1 (`dino-vit-b16`) is only
+reachable by overriding `model.vit_model` explicitly, for baseline comparisons.
 
 `configs/pineapple_llm.yaml` — pineapple task with LLM-derived classes.
-`configs/giraffe_dinov2.yaml` — giraffe task with the DINOv2 backbone (manual
-classes, so it needs no API key). Each isolates one addition for A/B testing.
+`configs/giraffe.yaml` — giraffe task, manual classes, DINOv2 (no API key needed).
+(`configs/giraffe_dinov2.yaml` was removed once DINOv2 became the default; the
+v1-vs-v2 run of 2026-09-15 is kept in `results/run_20260915_111519_4090/`.)
 
 `setup_gpu.sh` — installs GroundingDINO / segment-anything / Cutie, downloads the
 SAM ViT-H checkpoint, and prefetches DINOv2.
@@ -52,7 +55,9 @@ SAM ViT-H checkpoint, and prefetches DINOv2.
 
     bash setup_gpu.sh
 
-    # 1) Baseline (existing fixed-class pipeline) - validates the perception core
+    # Everything below uses DINOv2. One-shot on an RTX 4090: bash run_all_4090.sh
+
+    # 1) Manual classes - validates the perception core
     python droid_hodor_test_cutie.py --config configs/giraffe.yaml
 
     # 2) LLM entity front-end
@@ -60,8 +65,6 @@ SAM ViT-H checkpoint, and prefetches DINOv2.
     python llm_entities.py --config configs/pineapple_llm.yaml --write   # inspect/cache
     python droid_hodor_test_cutie.py --config configs/pineapple_llm.yaml
 
-    # 3) DINOv2 backbone (no API key needed)
-    python droid_hodor_test_cutie.py --config configs/giraffe_dinov2.yaml
 
 Outputs per episode: `episode_pr.npy` (features, [T, N+1, 768]) and
 `episode_bboxes.npy` ([T, N+1, 7] = 4 box + 3 centroid).

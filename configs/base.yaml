@@ -1,5 +1,9 @@
 model:
-  vit_model: "dino-vit-b16"
+  # DINOv2 ViT-B/14, as in the paper (appearance embeddings = masked average of
+  # DINO-v2 patch features; scene node = DINO-v2 CLS token). 224 = 16 x 14 patches.
+  # The original repo's DINO-v1 ("dino-vit-b16") is still loadable as a baseline
+  # by overriding vit_model in a task config, but it is no longer used by default.
+  vit_model: "dinov2-vit-b14"
   vit_image_size: 224
   feature_dim: 768
 

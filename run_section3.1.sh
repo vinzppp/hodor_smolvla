@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 # HODOR Section 3.1 (Task-Driven Scene Graph) — full reproduction runbook
+# NOTE: superseded by run_all_4090.sh (one-shot, logged). Kept for reference.
 # From a fresh RunPod A40 48GB pod (torch 2.8 / CUDA 12.8 / Python 3.12 image)
 # to all three validated pipelines.
 #
@@ -67,7 +68,7 @@ bash setup_gpu.sh
 python -c 'import groundingdino, segment_anything, cutie; print("perception deps OK")'
 
 # -----------------------------------------------------------------------------
-# 3. Baseline pipeline  (original repo: DINO-v1 backbone, hand-specified classes)
+# 3. Manual-class pipeline (DINOv2 backbone, hand-specified classes)
 #    detect -> segment -> embed -> track over all 10 giraffe episodes, writing
 #    episode_pr.npy / episode_bboxes.npy per episode. (~25 min)
 # -----------------------------------------------------------------------------
@@ -109,21 +110,7 @@ print('pr    ', a.shape, a.dtype)
 print('bboxes', b.shape, b.dtype)
 "
 
-# -----------------------------------------------------------------------------
-# 5. Faithful variant B — DINOv2 backbone swap (DINO-v1 -> DINOv2 ViT-B/14).
-#    NOTE: reuses the giraffe episodes and writes to the SAME data/giraffe/*.npy
-#    paths, so it OVERWRITES the step-3 DINO-v1 outputs. Rerun step 3 first if
-#    you need both sets side by side. (~25 min)
-# -----------------------------------------------------------------------------
-python droid_hodor_test_cutie.py --config configs/giraffe_dinov2.yaml
+# (Step 5, the separate DINOv2 config, was removed: DINOv2 is now the default
+#  backbone in configs/base.yaml, so steps 3 and 4 already use it.)
 
-# 5a. Inspect the DINOv2 outputs. Last dim = 768 confirms ViT-B/14.
-python -c "
-import numpy as np, glob
-pr = sorted(glob.glob('data/giraffe/*/episode_pr.npy'))[0]
-a = np.load(pr)
-print('file:', pr)
-print('pr    ', a.shape, a.dtype)
-"
-
-echo "All three Section 3.1 pipelines complete."
+echo "Section 3.1 pipelines complete (DINOv2)."
