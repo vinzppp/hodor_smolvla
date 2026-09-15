@@ -1,0 +1,167 @@
+# Set your GitHub and OpenRouter tokens for this shell session (not committed anywhere).
+root@03b136c6882d:/workspace# export GH_PAT=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+root@03b136c6882d:/workspace# export OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+
+# Install and enable Git LFS so the large data/weight files come down as real blobs.
+root@03b136c6882d:/workspace# apt-get update && apt-get install -y git-lfs
+Get:1 http://archive.ubuntu.com/ubuntu jammy InRelease [270 kB]
+...
+Setting up git-lfs (3.0.2-1ubuntu0.2) ...
+root@03b136c6882d:/workspace# git lfs install
+Updated git hooks.
+Git LFS initialized.
+
+
+# Clone the upstream repo for the REAL LFS blobs (data/ and pretrained/), then enter it.
+root@03b136c6882d:/workspace# git clone https://github.com/jianingq/scene-graph-robot.git
+Cloning into 'scene-graph-robot'...
+remote: Enumerating objects: 1284, done.
+remote: Counting objects: 100% (1284/1284), done.
+remote: Compressing objects: 100% (612/612), done.
+remote: Total 1284 (delta 640), reused 1180 (delta 560), pack-reused 0
+Receiving objects: 100% (1284/1284), 18.7 MiB | 22.4 MiB/s, done.
+Resolving deltas: 100% (640/640), done.
+Filtering content: 100% (23/23), 6.14 GiB | 41.2 MiB/s, done.
+root@03b136c6882d:/workspace# cd scene-graph-robot
+
+
+# Add your private repo and pull ONLY your code files over the top, leaving upstream's
+# real data/weights untouched (your repo has code but only LFS pointers for big files).
+root@03b136c6882d:/workspace/scene-graph-robot# git remote add fork https://${GH_PAT}@github.com/vinzppp/scene-graph.git
+root@03b136c6882d:/workspace/scene-graph-robot# git fetch fork
+remote: Enumerating objects: 47, done.
+remote: Counting objects: 100% (47/47), done.
+remote: Total 31 (delta 18), reused 31 (delta 18), pack-reused 0
+Unpacking objects: 100% (31/31), 22.13 KiB, done.
+From https://github.com/vinzppp/scene-graph
+ * [new branch]      main       -> fork/main
+root@03b136c6882d:/workspace/scene-graph-robot# git branch -r
+  fork/main
+  origin/HEAD -> origin/main
+  origin/main
+root@03b136c6882d:/workspace/scene-graph-robot# git checkout fork/main -- '*.py' configs setup_gpu.sh SECTION_3_1_NOTES.md
+
+
+# Build the whole environment: installs deps, patches + builds GroundingDINO for torch 2.8,
+# installs SAM/Cutie, pins the NLP stack, and downloads the SAM + DINOv2 weights.
+root@03b136c6882d:/workspace/scene-graph-robot# bash setup_gpu.sh
+==> Python deps
+Successfully installed albumentations-2.0.8 h5py-3.16.0 iopath-0.1.10 omegaconf-2.3.1 ...
+==> GroundingDINO
+Obtaining file:///workspace/scene-graph-robot/GroundingDINO
+  Checking if build backend supports build_editable ... done
+  Preparing editable metadata (pyproject.toml) ... done
+Building wheels for collected packages: groundingdino
+  Building editable for groundingdino (pyproject.toml) ... done
+  Created wheel for groundingdino: filename=groundingdino-0.1.0-0.editable-cp312-cp312-linux_x86_64.whl
+Successfully built groundingdino
+Successfully installed groundingdino-0.1.0 supervision-0.30.3 transformers-5.17.0 ...
+==> segment-anything
+Successfully built segment_anything
+Successfully installed segment_anything-1.0
+==> Cutie (do NOT pip install cutie from PyPI - unrelated package)
+Cloning into 'Cutie'...
+Successfully built cutie thinplate netifaces
+Successfully installed cutie-1.0.0 gradio-6.27.0 hydra-core-1.3.7 tensorboard-2.21.0 ...
+==> NLP stack pin (transformers<4.45 for GroundingDINO's BertModelWarper)
+Successfully installed huggingface_hub-0.25.2 timm-0.9.16 tokenizers-0.19.1 transformers-4.44.2
+==> SAM ViT-H checkpoint (~2.6GB)
+sam_vit_h_4b8939.pth       100%[===============================>]   2.39G  53.1MB/s    in 46s
+2026-09-15 05:53:52 (53.1 MB/s) - 'pretrained/sam_vit_h_4b8939.pth' saved [2564550879/2564550879]
+==> Prefetch DINOv2 ViT-B/14 (optional, for the faithful backbone)
+Downloading: "https://dl.fbaipublicfiles.com/dinov2/dinov2_vitb14/dinov2_vitb14_pretrain.pth" to /root/.cache/torch/hub/checkpoints/dinov2_vitb14_pretrain.pth
+100%|██████████████████████████████████████████████████████████| 330M/330M [00:00<00:00, 637MB/s]
+    DINOv2 cached
+
+Setup complete. Sanity checks:
+  python -c 'import groundingdino, segment_anything, cutie; print("perception deps OK")'
+
+
+# Quick check that the perception libraries import cleanly.
+root@03b136c6882d:/workspace/scene-graph-robot# python -c 'import groundingdino, segment_anything, cutie; print("perception deps OK")'
+perception deps OK
+
+
+# Baseline pipeline (DINO-v1 backbone, hand-specified classes) over all 10 giraffe episodes,
+# then inspect one episode's arrays: pr (T, N+1, 768), bboxes (T, N+1, 7).
+root@03b136c6882d:/workspace/scene-graph-robot# python droid_hodor_test_cutie.py --config configs/giraffe.yaml
+Load ckpt from ./pretrained/dino_vitbase16_pretrain.pth
+All keys matched successfully!
+Loaded encoder from: ./pretrained/dino_vitbase16_pretrain.pth
+final text_encoder_type: bert-base-uncased
+Downloading coco_lvis_h18_itermask.pth to /workspace/scene-graph-robot/Cutie/weights...
+100%|███████████████████████████████████████████████████████| 40.7M/40.7M [00:01<00:00, 38.1MiB/s]
+Downloading cutie-base-mega.pth to /workspace/scene-graph-robot/Cutie/weights...
+100%|█████████████████████████████████████████████████████████| 140M/140M [00:03<00:00, 46.0MiB/s]
+Found 10 episodes
+giraffe: 100%|████████████████████████████████████████████████| 10/10 [24:35<00:00, 147.59s/it]
+root@03b136c6882d:/workspace/scene-graph-robot# python -c "
+> import numpy as np, glob
+> pr = sorted(glob.glob('data/giraffe/*/episode_pr.npy'))[0]
+> bb = pr.replace('episode_pr.npy','episode_bboxes.npy')
+> a, b = np.load(pr), np.load(bb)
+> print('file:', pr)
+> print('pr    ', a.shape, a.dtype)
+> print('bboxes', b.shape, b.dtype)
+> "
+file: data/giraffe/Sat_Sep_27_12:15:37_2025/episode_pr.npy
+pr     (327, 3, 768) float32
+bboxes (327, 3, 7) float32
+
+
+# LLM entity front-end: extract the object classes from the task string, then run the
+# same pipeline driven by those classes, then inspect (slot count = scene + pineapple + bowl = 3).
+root@03b136c6882d:/workspace/scene-graph-robot# python llm_entities.py --config configs/pineapple_llm.yaml --write
+{
+  "instruction": "pick up the pineapple and place it in the bowl",
+  "provider": "openrouter",
+  "model": "openai/gpt-4o-mini",
+  "entities": [
+    "pineapple",
+    "bowl"
+  ],
+  "classes": [
+    "pineapple.",
+    "bowl."
+  ]
+}
+root@03b136c6882d:/workspace/scene-graph-robot# python droid_hodor_test_cutie.py --config configs/pineapple_llm.yaml
+[entities] task 'pineapple_llm': ['pineapple.', 'bowl.'] (provider=openrouter, model=openai/gpt-4o-mini)
+Load ckpt from ./pretrained/dino_vitbase16_pretrain.pth
+All keys matched successfully!
+Loaded encoder from: ./pretrained/dino_vitbase16_pretrain.pth
+final text_encoder_type: bert-base-uncased
+Found 10 episodes
+pineapple_llm: 100%|██████████████████████████████████████████| 10/10 [09:49<00:00, 58.96s/it]
+root@03b136c6882d:/workspace/scene-graph-robot# python -c "
+> import numpy as np, glob
+> pr = sorted(glob.glob('data/pineapple/*/episode_pr.npy'))[0]
+> bb = pr.replace('episode_pr.npy','episode_bboxes.npy')
+> a, b = np.load(pr), np.load(bb)
+> print('file:', pr)
+> print('pr    ', a.shape, a.dtype)
+> print('bboxes', b.shape, b.dtype)
+> "
+file: data/pineapple/Mon_Sep_22_01:28:29_2025/episode_pr.npy
+pr     (126, 3, 768) float32
+bboxes (126, 3, 7) float32
+
+
+# DINOv2 backbone variant on the giraffe episodes (overwrites the DINO-v1 giraffe outputs),
+# then inspect: last dim 768 confirms DINOv2 ViT-B/14.
+root@03b136c6882d:/workspace/scene-graph-robot# python droid_hodor_test_cutie.py --config configs/giraffe_dinov2.yaml
+Using cache found in /root/.cache/torch/hub/facebookresearch_dinov2_main
+final text_encoder_type: bert-base-uncased
+Found 10 episodes
+giraffe_dinov2: 100%|█████████████████████████████████████████| 10/10 [24:46<00:00, 148.62s/it]
+root@03b136c6882d:/workspace/scene-graph-robot# python -c "
+> import numpy as np, glob
+> pr = sorted(glob.glob('data/giraffe/*/episode_pr.npy'))[0]
+> a = np.load(pr)
+> print('file:', pr)
+> print('pr    ', a.shape, a.dtype)
+> "
+file: data/giraffe/Sat_Sep_27_12:15:37_2025/episode_pr.npy
+pr     (327, 3, 768) float32
+root@03b136c6882d:/workspace/scene-graph-robot#
