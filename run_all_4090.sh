@@ -137,6 +137,14 @@ fi
 source "$WS/hodor_env.sh"
 export TORCH_CUDA_ARCH_LIST=8.9
 python -c "import matplotlib" 2>/dev/null || pip install -q matplotlib
+# RunPod images set HF_HUB_ENABLE_HF_TRANSFER=1 without shipping hf_transfer,
+# which makes every Hugging Face download (GroundingDINO's BERT) crash.
+if [ "${HF_HUB_ENABLE_HF_TRANSFER:-0}" = 1 ] && ! python -c "import hf_transfer" 2>/dev/null; then
+  pip install -q hf_transfer 2>/dev/null || { log "hf_transfer unavailable -> disabling fast HF downloads"; export HF_HUB_ENABLE_HF_TRANSFER=0; }
+fi
+# Fail fast if model downloads are broken, instead of failing every config.
+python -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('bert-base-uncased'); print('HF download OK (bert-base-uncased)')" \
+  || die "cannot load bert-base-uncased from Hugging Face (network / HF cache problem)"
 
 python -c 'import groundingdino, segment_anything, cutie; print("perception deps OK")' \
   || die "perception imports failed"
