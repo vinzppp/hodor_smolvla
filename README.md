@@ -69,6 +69,8 @@ The chicken detection values are copied from the legacy
 threshold `0.8`, confidence threshold `0.2`, box area `1000–150000`, and
 per-class occupied-mask coverage threshold `0.7`.
 
+> Note (2026-10-26): the DROID entry script, its per-scene configs, `data/` and `results/` now live in `archive/droid-section3.1/` (see its README). Move them back to the repo root before running the commands below.
+
 Run from this directory:
 
 ```bash
