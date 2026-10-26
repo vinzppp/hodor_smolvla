@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import random
 import sys
 import time
@@ -78,9 +79,8 @@ def set_seed(seed: int = 0) -> None:
     torch.cuda.manual_seed_all(seed)
 
 
-def pass_fail(name: str, ok: bool, value: Any) -> bool:
+def pass_fail(name: str, ok: bool, value: Any) -> None:
     print(f"[{'PASS' if ok else 'FAIL'}] {name}: {value}")
-    return ok
 
 
 def source_line(obj) -> str:
@@ -133,22 +133,31 @@ def cuda_forward_backward() -> float:
 # Step 2-3: raw demos (HDF5) and simulator replay
 # --------------------------------------------------------------------------------------------
 def download_h5(task: str, local_dir: Path) -> Path:
-    """Download record_dataset_<task>.h5 from the RoboMME HF dataset. VERIFY: file layout in the repo."""
-    from huggingface_hub import hf_hub_download, list_repo_files
+    """Download record_dataset_<task>.h5 from the RoboMME HF dataset.
 
-    files = [
-        f
-        for f in list_repo_files(H5_REPO, repo_type="dataset")
-        if f.endswith(f"record_dataset_{task}.h5")
-    ]
-    if not files:
-        raise FileNotFoundError(
-            f"record_dataset_{task}.h5 not found in {H5_REPO}; files seen: "
-            f"{list_repo_files(H5_REPO, repo_type='dataset')[:20]}"
+    The repo stores each task as record_dataset_<task>.h5.tar.xz holding the single .h5 file
+    (verified 2026-10-26; Yinpei/robomme_data_h5 README.md and tarxz_h5.py). The archive is
+    extracted next to itself and deleted; an already extracted .h5 is reused.
+    """
+    import tarfile
+
+    from huggingface_hub import hf_hub_download
+
+    name = f"record_dataset_{task}.h5"
+    h5_path = Path(local_dir) / name
+    if h5_path.exists():
+        return h5_path
+    archive = Path(
+        hf_hub_download(
+            H5_REPO, name + ".tar.xz", repo_type="dataset", local_dir=str(local_dir)
         )
-    return Path(
-        hf_hub_download(H5_REPO, files[0], repo_type="dataset", local_dir=str(local_dir))
     )
+    with tarfile.open(archive, "r:xz") as tf:
+        if tf.getnames() != [name]:
+            raise ValueError(f"unexpected members in {archive.name}: {tf.getnames()}")
+        tf.extractall(local_dir, filter="data")
+    archive.unlink()
+    return h5_path
 
 
 def h5_episode_indices(h5file) -> list[int]:
@@ -161,6 +170,14 @@ def _decode(raw) -> str:
     if isinstance(raw, (bytes, np.bytes_)):
         raw = raw.decode("utf-8")
     return str(raw)
+
+
+def h5_task_goals(h5file) -> dict[int, str]:
+    """Instruction of every episode, read from episode_<i>/setup/task_goal only (no frames)."""
+    return {
+        ep: _decode(np.asarray(h5file[f"episode_{ep}"]["setup"]["task_goal"][()]).reshape(-1)[0])
+        for ep in h5_episode_indices(h5file)
+    }
 
 
 def read_h5_episode(h5file, ep: int) -> dict:
@@ -359,6 +376,9 @@ class Replay:
     task_goal: str
     scene: dict  # from scene_objects(), minus live actors
     status: str
+    # [T, N, 3] actor pose positions (world, m) per node; NaN for the video frames before the last
+    # reset frame (reset plays the video internally, so only its final state is observable)
+    obj_xyz: np.ndarray | None = None
 
 
 def _collect(obs: dict, store: dict) -> int:
@@ -424,12 +444,21 @@ def replay_episode(
     goal = info.get("task_goal", "")
     goal = goal[0] if isinstance(goal, (list, tuple)) and goal else str(goal)
     scene = scene_objects(env)
+    actors = [o["actor"] for o in scene["objects"]]
+
+    def poses(n_frames: int) -> list[np.ndarray]:
+        # the env returns n_frames images per call but exposes only the final pose
+        p = np.stack([actor_xyz(a) for a in actors])
+        return [np.full_like(p, np.nan)] * (n_frames - 1) + [p]
+
+    obj_xyz = poses(n0)
     policy_frame, status = [], "ongoing"
     for a in actions:
         policy_frame.append(len(store["front_rgb"]) - 1)
         obs, _, term, trunc, info = env.step(a)
         n = _collect(obs, store)
         is_video += [False] * n
+        obj_xyz += poses(n)
         if bool(_np(term).reshape(-1)[0]) or bool(_np(trunc).reshape(-1)[0]):
             status = info.get("status", "unknown")
             break
@@ -461,6 +490,7 @@ def replay_episode(
         task_goal=goal,
         scene=scene_static,
         status=status,
+        obj_xyz=np.stack(obj_xyz).astype(np.float32),
     )
 
 
@@ -485,6 +515,7 @@ def save_replay(rep: Replay, path: Path) -> None:
             "is_video",
             "policy_frame",
             "actions",
+            "obj_xyz",
         ]
     }
     meta = dict(
@@ -507,14 +538,51 @@ def load_replay(path: Path) -> Replay:
     return Replay(**{k: z[k] for k in z.files if k != "meta"}, **meta)
 
 
-def target_cube_node(scene: dict, task_goal: str) -> int:
-    """The cube named in the instruction ('... hides the <color> cube')."""
+PICK_Z = 0.15  # metres: RoboMME counts a container as picked up when its pose z exceeds this
+# (robomme_env/utils/subgoal_evaluate_func.py is_bin_pickup)
+
+
+def target_cube_nodes(scene: dict, task_goal: str) -> list[int]:
+    """The cubes named in the instruction, in the order they must be picked.
+
+    Some episodes ask for two: '... hiding the blue cube, finally pick up another container hiding
+    the red cube'. The order of mention is the env's subgoal order (VideoUnmaskSwap._load_scene).
+    """
+    found = []
     for o in scene["objects"]:
-        if o["label_id"] == 1 and o.get("color") and f"{o['color']} cube" in task_goal:
-            return o["node"]
-    raise ValueError(
-        f"no cube colour of {[o.get('color') for o in scene['objects']]} found in {task_goal!r}"
-    )
+        if o["label_id"] == 1 and o.get("color"):
+            i = task_goal.find(f"{o['color']} cube")
+            if i >= 0:
+                found.append((i, o["node"]))
+    if not found:
+        raise ValueError(
+            f"no cube colour of {[o.get('color') for o in scene['objects']]} found in {task_goal!r}"
+        )
+    return [n for _, n in sorted(found)]
+
+
+class ActiveTarget:
+    """The target currently asked for: the first until its container is picked up, then the next.
+
+    A pick counts once the target's container (the cube rides with it) has pose z > PICK_Z, the
+    test RoboMME itself uses to advance the subgoal. Latched: a container put back down stays picked.
+    """
+
+    def __init__(self, targets: list[int], cube_to_bin: dict):
+        self.targets, self.bins = list(targets), [cube_to_bin[c] for c in targets]
+        self.k = 0
+
+    def update(self, obj_xyz: np.ndarray) -> int:
+        """obj_xyz [N, 3] pose positions this frame (NaN rows ignored) -> active target node."""
+        while self.k < len(self.targets) - 1 and obj_xyz[self.bins[self.k], 2] > PICK_Z:
+            self.k += 1
+        return self.targets[self.k]
+
+
+def active_targets(rep: Replay, targets: list[int]) -> np.ndarray:
+    """[T] active target node per replayed frame (ActiveTarget over the recorded poses)."""
+    at = ActiveTarget(targets, rep.scene["cube_to_bin"])
+    return np.array([at.update(rep.obj_xyz[t]) for t in range(len(rep.obj_xyz))])
 
 
 def decision_frame(rep: Replay) -> int:
@@ -706,12 +774,21 @@ def apply_rule(
 
 
 def target_error(
-    graph: np.ndarray, full_xyz: np.ndarray, node: int, K: np.ndarray, E: np.ndarray
+    graph: np.ndarray,
+    full_xyz: np.ndarray,
+    node: int | np.ndarray,
+    K: np.ndarray,
+    E: np.ndarray,
 ):
-    """Per-frame error of one node against the full oracle: (pixels [T], metres [T])."""
+    """Per-frame error of one node against the full oracle: (pixels [T], metres [T]).
+
+    node is one node id, or a [T] array of ids (the active target per frame).
+    """
     T = len(graph)
+    nodes = np.broadcast_to(np.asarray(node), (T,))
     px, m = np.full(T, np.nan), np.full(T, np.nan)
     for t in range(T):
+        node = int(nodes[t])
         if np.all(np.isfinite(full_xyz[t, node])) and np.all(
             np.isfinite(graph[t, node, F_X : F_Z + 1])
         ):
@@ -728,73 +805,116 @@ def target_error(
 QUALITY_LEVELS = ["Q0", "Q1_20", "Q1_50", "Q2_25", "Q2_50", "Q3"]
 
 
+def draw_corruption(level: str, seed: int, targets: list[int], scene: dict):
+    """The per-episode random draws of a quality level, shared by corrupt() and OnlineGraph.
+
+    Returns (q1, q2): q1 = the (du, dv) pixel offset for Q1_s, else None; q2 = {target: wrong
+    container} for Q2_p when the episode's Bernoulli draw fires, else None. Each target gets its own
+    fixed wrong container, chosen among the containers that do not hide it.
+    """
+    rng = np.random.default_rng(seed)
+    if level.startswith("Q1_"):
+        return rng.normal(0, float(level.split("_")[1]), 2), None
+    if level.startswith("Q2_") and rng.random() < float(level.split("_")[1]) / 100.0:
+        bins = [o["node"] for o in scene["objects"] if o["label_id"] == 0]
+        return None, {
+            c: int(rng.choice([b for b in bins if b != scene["cube_to_bin"][c]]))
+            for c in targets
+        }
+    return None, None
+
+
+def _offset_node(f: np.ndarray, n: int, duv: np.ndarray, K: np.ndarray, E: np.ndarray) -> None:
+    """Shift node n of one frame [N, 8] by duv pixels; 3D = back-projection at the node's depth."""
+    xyz = f[n, F_X : F_Z + 1]
+    if not np.all(np.isfinite(xyz)):
+        return
+    cam = E[:3, :3] @ xyz + E[:3, 3]
+    u, v = project_points(xyz, K, E)[0] + duv
+    ray = np.array([(u - K[0, 2]) / K[0, 0], (v - K[1, 2]) / K[1, 1], 1.0]) * cam[2]
+    f[n, F_X : F_Z + 1] = (cam_to_world(E) @ np.r_[ray, 1.0])[:3]
+    f[n, F_U : F_V + 1] = (u, v)
+
+
 def corrupt(
     gated_bound: np.ndarray,
     level: str,
     seed: int,
-    target: int,
-    containers: list[int],
+    active: np.ndarray,
+    targets: list[int],
+    scene: dict,
     K: np.ndarray,
     E: np.ndarray,
     perceived_bound: np.ndarray | None = None,
 ) -> np.ndarray:
-    """Test-time corruptions. Input = visibility-gated oracle + bound (Q0). Drawn once per episode.
+    """Test-time corruptions of the active target. Input = visibility-gated oracle + bound (Q0).
 
-    Q1_s : Gaussian pixel offset (sigma s px) on the target, applied while it is hidden; the 3D offset
-           is the back-projection of that pixel offset at the target's depth.
-    Q2_p : with probability p, the hidden target takes another container's position (fixed choice).
-           `containers` must list only containers that do NOT hide the target.
+    active [T] is the active target node per frame (ActiveTarget) and targets the episode's ordered
+    target list; each frame corrupts only the active node, and only while it is hidden. Draws are made
+    once per episode from the full target list (draw_corruption), as OnlineGraph does.
+    Q1_s : Gaussian pixel offset (sigma s px); the 3D offset is the back-projection of that pixel
+           offset at the target's depth.
+    Q2_p : with probability p, the hidden target takes a wrong container's position.
     Q3   : the perceived graph with the bound rule.
     """
-    rng = np.random.default_rng(seed)
     g = gated_bound.copy()
-    hid = g[:, target, F_HIDDEN] == 1
     if level == "Q0":
-        return g
-    if level.startswith("Q1_"):
-        sigma = float(level.split("_")[1])
-        du, dv = rng.normal(0, sigma, 2)
-        for t in np.nonzero(hid)[0]:
-            xyz = g[t, target, F_X : F_Z + 1]
-            if not np.all(np.isfinite(xyz)):
-                continue
-            Ew = E[t]
-            cam = Ew[:3, :3] @ xyz + Ew[:3, 3]
-            u, v = project_points(xyz, K, Ew)[0] + np.array([du, dv])
-            ray = np.array([(u - K[0, 2]) / K[0, 0], (v - K[1, 2]) / K[1, 1], 1.0]) * cam[2]
-            g[t, target, F_X : F_Z + 1] = (cam_to_world(Ew) @ np.r_[ray, 1.0])[:3]
-            g[t, target, F_U : F_V + 1] = (u, v)
-        return g
-    if level.startswith("Q2_"):
-        p = float(level.split("_")[1]) / 100.0
-        if rng.random() < p:
-            other = int(rng.choice(containers))
-            for t in np.nonzero(hid)[0]:
-                g[t, target, F_X : F_Z + 1] = g[t, other, F_X : F_Z + 1]
-                g[t, target, F_U : F_V + 1] = g[t, other, F_U : F_V + 1]
         return g
     if level == "Q3":
         if perceived_bound is None:
             raise ValueError("Q3 needs the perceived graph with the bound rule")
         return perceived_bound.copy()
-    raise ValueError(level)
+    if not (level.startswith("Q1_") or level.startswith("Q2_")):
+        raise ValueError(level)
+    q1, q2 = draw_corruption(level, seed, targets, scene)
+    for t, tg in enumerate(active):
+        tg = int(tg)
+        if g[t, tg, F_HIDDEN] != 1:
+            continue
+        if q1 is not None:
+            _offset_node(g[t], tg, q1, K, E[t])
+        elif q2 is not None:
+            g[t, tg, F_X : F_Z + 1] = g[t, q2[tg], F_X : F_Z + 1]
+            g[t, tg, F_U : F_V + 1] = g[t, q2[tg], F_U : F_V + 1]
+    return g
 
 
 # --------------------------------------------------------------------------------------------
 # Step 5: perceived graph with the repo's HODOR pipeline (adapter; repo files untouched)
 # --------------------------------------------------------------------------------------------
-def make_robomme_perception_config(n_bins: int, colors: list[str], scale: int = 2):
+MODELS_DIR = Path(os.environ.get("SG_MODELS_DIR", "/workspace/models"))  # SAM + GroundingDINO weights
+PERCEP_PYTHON = os.environ.get("SG_PERCEP_PYTHON", "/workspace/envs/sg-percep/bin/python")
+
+
+def _deep_merge(a: dict, b: dict) -> dict:
+    out = dict(a)
+    for k, v in b.items():
+        out[k] = _deep_merge(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else v
+    return out
+
+
+# Smallest box GroundingDINO may accept as a container, in px^2 of the 512 px detector image. Measured
+# from simulator masks (episodes 0-1): cube boxes <= 728, container boxes 5th percentile >= 1800. Without
+# it the container slots seed on cubes at frame 0, before any container is in view.
+CONTAINER_MIN_AREA_512 = 1200
+
+
+def make_robomme_perception_config(n_bins: int, colors: list[str], scale: int = 2) -> dict:
     """Config for HODORProcessor on RoboMME front frames (256 px, optionally upscaled for detection).
 
+    A plain dict (configs/base.yaml merged with the task block): the perception worker wraps it in
+    OmegaConf, so the notebook's environment does not need OmegaConf.
     Class order: containers first, then cubes (a container box enclosing an earlier cube mask would be
     rejected by detect_class's overlap filter). 'container.' is listed once per container so each
     container gets its own slot and Cutie processor (extract_part_masks_cutie.py detect_class/process).
     Area ranges are in pixels of the detector image (256 * scale).
     """
-    from omegaconf import OmegaConf
+    import yaml
 
-    base = OmegaConf.load(REPO_ROOT / "configs" / "base.yaml")
-    classes = ["container."] * n_bins + [f"{c}.cube." for c in colors]
+    base = yaml.safe_load((REPO_ROOT / "configs" / "base.yaml").read_text())
+    # one phrase per class: GroundingDINO splits its caption at '.', so "green.cube." would be the two
+    # phrases "green" and "cube" and match any cube
+    classes = ["container."] * n_bins + [f"{c} cube." for c in colors]
     img = 256 * scale
     task = {
         "task": {
@@ -809,7 +929,9 @@ def make_robomme_perception_config(n_bins: int, colors: list[str], scale: int = 
         },
         "perception": {
             "num_processors": len(classes),
-            "class_area_ranges": {},
+            "class_area_ranges": {
+                i: [int(CONTAINER_MIN_AREA_512 * (scale / 2) ** 2), None] for i in range(n_bins)
+            },
             "skip_non_first_frame": False,
             "global_area_min": int(0.0005 * img * img),
             "global_area_max": int(0.25 * img * img),
@@ -818,10 +940,9 @@ def make_robomme_perception_config(n_bins: int, colors: list[str], scale: int = 
         "data": {"depth_min_m": 0.05, "depth_max_m": 3.0},
         "paths": {
             "home_path": str(REPO_ROOT),
-            "groundingdino_checkpoint": str(
-                REPO_ROOT / "pretrained" / "groundingdino_swint_ogc.pth"
-            ),
-            "sam_checkpoint": str(REPO_ROOT / "pretrained" / "sam_vit_h_4b8939.pth"),
+            # absolute paths: os.path.join(home_path, abs) keeps abs (extract_part_masks_cutie.py)
+            "groundingdino_checkpoint": str(MODELS_DIR / "groundingdino_swint_ogc.pth"),
+            "sam_checkpoint": str(MODELS_DIR / "sam_vit_h_4b8939.pth"),
         },
         "output": {
             "output_dir": str(CACHE_DIR / "hodor_out"),
@@ -831,22 +952,47 @@ def make_robomme_perception_config(n_bins: int, colors: list[str], scale: int = 
             "save_rerun": False,
         },
     }
-    return OmegaConf.merge(base, OmegaConf.create(task))
+    return _deep_merge(base, task)
 
 
-def make_robomme_processor(config):
-    """RoboMMEProcessor = HODORProcessor with RoboMME camera geometry.
+def robomme_processor_class():
+    """RoboMMEProcessor = HODORProcessor with RoboMME camera geometry. Built inside the perception
+    worker (sg-percep venv), which holds the repo's perception stack.
 
     # changed: _depth_to_pointcloud: no DROID crop shift (cx - 150); extrinsics are a 4x4 camera->world
     #          OpenCV matrix (converted from RoboMME's 3x4 world->camera extrinsic_cv by the caller).
     # changed: _add_centroids: masks resized to the depth resolution with nearest neighbour; no
     #          800x800 resize and no 180-degree rotation (RoboMME frames are not rotated).
+    # added:   container candidates whose box touches the top image edge are dropped before
+    #          detect_class's filters: the robot enters the front view there and is container-sized.
     """
     sys.path.insert(0, str(REPO_ROOT))
     import torch.nn.functional as F
     from post_process_scene_cutie import HODORProcessor
 
+    class TopEdgeFilter:
+        """Wraps the shared GroundingDINO model; drops 'container' boxes with y0 <= margin px."""
+
+        def __init__(self, model, margin: int = 2):
+            self.model, self.margin = model, margin
+
+        def predict_with_classes(self, image, classes, box_threshold, text_threshold):
+            det = self.model.predict_with_classes(
+                image=image,
+                classes=classes,
+                box_threshold=box_threshold,
+                text_threshold=text_threshold,
+            )
+            if classes and classes[0].startswith("container") and len(det.xyxy):
+                det = det[det.xyxy[:, 1] > self.margin]
+            return det
+
     class RoboMMEProcessor(HODORProcessor):
+        def __init__(self, config):
+            super().__init__(config)
+            det = self.tracker.detector
+            det.grounding_dino = TopEdgeFilter(det.grounding_dino)
+
         def _depth_to_pointcloud(self, depth, rgb, intrinsics, extrinsics, binary_mask):
             fx, fy, cx, cy = (
                 intrinsics[0, 0],
@@ -880,20 +1026,209 @@ def make_robomme_processor(config):
                 if len(pts) > 0:
                     bboxes[i + 1, 4:7] = pts.mean(axis=0)
 
-    return RoboMMEProcessor(config)
+    return RoboMMEProcessor
+
+
+# Messages between the notebook and the perception worker: a JSON header plus raw array bytes, so
+# the two venvs' numpy versions (1.26 and 2.x) never have to unpickle each other's arrays.
+def pack_msg(meta: dict, arrays: dict[str, np.ndarray] | None = None) -> bytes:
+    arrays = {k: np.ascontiguousarray(v) for k, v in (arrays or {}).items()}
+    specs = {k: [v.dtype.str, list(v.shape)] for k, v in arrays.items()}
+    head = json.dumps({"meta": meta, "arrays": specs}).encode()
+    return b"".join(
+        [len(head).to_bytes(8, "little"), head] + [v.tobytes() for v in arrays.values()]
+    )
+
+
+def unpack_msg(buf: bytes) -> tuple[dict, dict[str, np.ndarray]]:
+    n = int.from_bytes(buf[:8], "little")
+    head = json.loads(buf[8 : 8 + n])
+    arrays, off = {}, 8 + n
+    for k, (dt, shape) in head["arrays"].items():
+        size = int(np.prod(shape)) * np.dtype(dt).itemsize
+        arrays[k] = np.frombuffer(buf, dt, int(np.prod(shape)), off).reshape(shape).copy()
+        off += size
+    return head["meta"], arrays
+
+
+@dataclass
+class FrameResult:
+    """What process_frame returns across the process boundary (HODOR's FrameOutput, minus dino_full)."""
+
+    representation: np.ndarray  # [S+1, 768]: slot 0 = global CLS, 1..S = object features
+    bboxes: np.ndarray  # [S+1, 7]: [row_min, row_max, col_min, col_max] (normalised) + centroid xyz
+    label_mask: np.ndarray | None  # [H, W] int: slot index per pixel, S = background (if requested)
+    seed_events: list  # GroundingDINO+SAM seedings that happened during this frame
+    compute_s: float  # time spent inside the worker
+
+
+class PerceptionWorker:
+    """Client for perception_worker.py: one long-lived process in the sg-percep venv that loads
+    GroundingDINO, SAM, Cutie and DINOv2 once and then serves frames over a Unix socket.
+
+    Started on first use and shared by everything in this process (get_perception_worker()).
+    """
+
+    def __init__(self, python: str = PERCEP_PYTHON, timeout_s: float = 600.0):
+        import secrets
+        import subprocess
+        import tempfile
+        from multiprocessing.connection import Listener
+
+        self.log_path = CACHE_DIR / "perception_worker.log"
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+        sock = str(Path(tempfile.mkdtemp(prefix="sgpw_")) / "sock")
+        key = secrets.token_bytes(16)
+        listener = Listener(sock, family="AF_UNIX", authkey=key)
+        # the pod sets HF_HUB_ENABLE_HF_TRANSFER=1, but hf_transfer is not installed in sg-percep;
+        # a Jupyter kernel exports its inline MPLBACKEND, which sg-percep's matplotlib rejects
+        env = dict(
+            os.environ,
+            SG_WORKER_AUTHKEY=key.hex(),
+            HF_HUB_ENABLE_HF_TRANSFER="0",
+            MPLBACKEND="Agg",
+        )
+        self.proc = subprocess.Popen(
+            [python, str(PILOT_DIR / "perception_worker.py"), sock],
+            stdout=open(self.log_path, "w"),
+            stderr=subprocess.STDOUT,
+            env=env,
+            cwd=str(PILOT_DIR),
+        )
+        listener._listener._socket.settimeout(timeout_s)
+        try:
+            self.conn = listener.accept()
+        except OSError as exc:
+            self.proc.kill()
+            raise RuntimeError(f"perception worker did not connect; log:\n{self.log_tail()}") from exc
+        finally:
+            listener.close()
+        self.ready = self.call("ping")[0]
+        self.roundtrip_s: list[float] = []
+
+    def log_tail(self, n: int = 40) -> str:
+        try:
+            return "\n".join(self.log_path.read_text().splitlines()[-n:])
+        except OSError:
+            return "<no log>"
+
+    def call(self, op: str, meta: dict | None = None, arrays: dict | None = None):
+        if self.proc.poll() is not None:
+            raise RuntimeError(f"perception worker exited ({self.proc.returncode}); log:\n{self.log_tail()}")
+        try:
+            self.conn.send_bytes(pack_msg({"op": op, **(meta or {})}, arrays))
+            out_meta, out_arrays = unpack_msg(self.conn.recv_bytes())
+        except (EOFError, OSError) as exc:
+            raise RuntimeError(f"perception worker connection lost; log:\n{self.log_tail()}") from exc
+        if "error" in out_meta:
+            raise RuntimeError(f"perception worker, op {op}:\n{out_meta['error']}")
+        return out_meta, out_arrays
+
+    def configure(self, config: dict) -> "PerceptionHandle":
+        meta, _ = self.call("configure", {"config": config})
+        return PerceptionHandle(self, meta)
+
+    def close(self) -> None:
+        """Stop the worker (frees its ~GPU memory, e.g. before training)."""
+        global _WORKER
+        if self.proc.poll() is None:
+            try:
+                self.conn.send_bytes(pack_msg({"op": "exit"}))
+                self.proc.wait(30)
+            except Exception:  # noqa: BLE001
+                self.proc.kill()
+        if _WORKER is self:
+            _WORKER = None
+
+
+_WORKER: PerceptionWorker | None = None
+
+
+def get_perception_worker() -> PerceptionWorker:
+    global _WORKER
+    if _WORKER is None or _WORKER.proc.poll() is not None:
+        import atexit
+
+        _WORKER = PerceptionWorker()
+        atexit.register(_WORKER.close)
+    return _WORKER
+
+
+def close_perception_worker() -> bool:
+    """Stop the perception worker if one is running (e.g. before training); True if one was stopped."""
+    if _WORKER is None:
+        return False
+    _WORKER.close()
+    return True
+
+
+class PerceptionHandle:
+    """One configured RoboMMEProcessor inside the worker, with the processor attributes the notebook
+    uses (classes, num_classes, feature_dim). Models are shared across handles; a new class list
+    only builds new detector/tracker wrappers."""
+
+    def __init__(self, worker: PerceptionWorker, meta: dict):
+        self.worker, self.id = worker, meta["handle"]
+        self.classes, self.num_classes = meta["classes"], meta["num_classes"]
+        self.feature_dim = meta["feature_dim"]
+
+    def process_frame(
+        self,
+        hand_bgr_rotated,
+        frame_num,
+        episode_num,
+        depth,
+        hand_rgb_unrotated,
+        intrinsics,
+        extrinsics,
+        return_mask: bool = False,
+    ) -> FrameResult:
+        """HODORProcessor.process_frame in the worker (same arguments). frame_num 0 starts an episode."""
+        t0 = time.perf_counter()
+        meta, arr = self.worker.call(
+            "process_frame",
+            dict(handle=self.id, frame_num=int(frame_num), episode_num=int(episode_num), return_mask=return_mask),
+            dict(
+                bgr=hand_bgr_rotated,
+                depth=np.asarray(depth, np.float32),
+                rgb=hand_rgb_unrotated,
+                K=np.asarray(intrinsics, np.float64),
+                extr=np.asarray(extrinsics, np.float64),
+            ),
+        )
+        self.worker.roundtrip_s.append(time.perf_counter() - t0)
+        return FrameResult(
+            arr["representation"], arr["bboxes"], arr.get("label_mask"), meta["seed_events"], meta["compute_s"]
+        )
+
+    def obtain_features(self, image_bgr: np.ndarray, masks: np.ndarray) -> np.ndarray:
+        """HODORProcessor._obtain_features: masks [N, H, W] -> [N+1, 768] (row 0 = global CLS)."""
+        _, arr = self.worker.call(
+            "features",
+            {"handle": self.id},
+            {"bgr": image_bgr, "masks": np.asarray(masks, np.float32)},
+        )
+        return arr["representation"]
+
+
+def make_robomme_processor(config: dict) -> PerceptionHandle:
+    """The repo's HODOR pipeline as a RoboMMEProcessor (robomme_processor_class), configured in the
+    persistent perception worker; see PerceptionWorker for why it runs in a second process."""
+    return get_perception_worker().configure(config)
 
 
 def perceived_graph(
     rep: Replay,
-    processor,
+    processor: PerceptionHandle,
     scale: int = 2,
     episode_num: int = 0,
     keep_masks: set[int] | None = None,
 ):
     """Run the processor over all front frames.
 
-    Returns graph [T, S, 8] in slot order, features [T, S, 768], the frame-0 seed events and the tracker's
-    label masks (at the detector resolution) for the frames in keep_masks.
+    Returns graph [T, S, 8] in slot order, features [T, S, 768], every seed event (GroundingDINO+SAM
+    initialisation, with its frame) and the tracker's label masks (at the detector resolution) for the
+    frames in keep_masks.
 
     (u, v) = front projection of the perceived centroid; hidden = 1 when the slot has no mask this frame
     (process_frame resets only bbox[:4] each frame, so stale centroids/features of absent slots are
@@ -903,19 +1238,9 @@ def perceived_graph(
 
     T = len(rep.front_rgb)
     S = processor.num_classes
-    label_masks = {}
-    orig_process = processor.tracker.process
-
-    def recording_process(image_bgr, frame_index):
-        out_mask = orig_process(image_bgr, frame_index)
-        if keep_masks is not None and frame_index in keep_masks:
-            label_masks[frame_index] = out_mask.copy()
-        return out_mask
-
-    processor.tracker.process = recording_process
+    label_masks, seeds = {}, []
     g = np.full((T, S, 8), np.nan, np.float32)
     feats = np.zeros((T, S, processor.feature_dim), np.float32)
-    seeds = None
     for t in range(T):
         rgb = rep.front_rgb[t]
         big = cv2.resize(
@@ -929,9 +1254,11 @@ def perceived_graph(
             hand_rgb_unrotated=rgb,
             intrinsics=rep.K_front,
             extrinsics=cam_to_world(rep.E_front[t]),
+            return_mask=keep_masks is not None and t in keep_masks,
         )
-        if t == 0:
-            seeds = list(getattr(processor.tracker, "seed_events", []))
+        seeds += out.seed_events
+        if out.label_mask is not None:
+            label_masks[t] = out.label_mask
         for s in range(S):
             bb = out.bboxes[s + 1]
             visible = not np.allclose(bb[:4], 0.0)
@@ -945,7 +1272,6 @@ def perceived_graph(
                     0
                 ]
                 feats[t, s] = out.representation[s + 1]
-    processor.tracker.process = orig_process
     return g, feats, seeds, label_masks
 
 
@@ -967,6 +1293,31 @@ def assign_slots(perceived: np.ndarray, oracle: np.ndarray, t: int, radius_px: f
                 )
     rows, cols = linear_sum_assignment(cost)
     return {int(r): int(c) for r, c in zip(rows, cols) if cost[r, c] < radius_px}
+
+
+def assign_slots_seeded(perceived: np.ndarray, oracle: np.ndarray, radius_px: float = 25.0):
+    """Slot -> oracle node, each slot matched at the first frame it has a mask (its seed frame).
+
+    Slots seed at different frames (cubes at frame 0, containers only once they enter the view), so a
+    single-frame assignment would leave some slots unmatched. Slots sharing a seed frame are matched
+    jointly (assign_slots, same label, Hungarian on (u, v)); a node is used at most once.
+    Returns (assignment, {slot: seed frame}).
+    """
+    S = perceived.shape[1]
+    seed = {}
+    for s in range(S):
+        vis = np.nonzero(perceived[:, s, F_HIDDEN] == 0)[0]
+        if len(vis):
+            seed[s] = int(vis[0])
+    out: dict[int, int] = {}
+    for t in sorted(set(seed.values())):
+        group = [s for s in seed if seed[s] == t]
+        sub = perceived[:, group].copy()
+        orc = oracle.copy()
+        orc[:, list(out.values()), F_U : F_V + 1] = np.nan  # already taken
+        for i, n in assign_slots(sub, orc, t, radius_px).items():
+            out[group[i]] = n
+    return out, seed
 
 
 def identity_accuracy(
@@ -1016,32 +1367,27 @@ def reorder_to_oracle(
 
 
 def oracle_features(
-    rep: Replay, processor_or_encoder, frames: list[int] | None = None
+    rep: Replay, processor: PerceptionHandle, frames: list[int] | None = None
 ) -> np.ndarray:
     """DINOv2 masked-mean feature per node from simulator masks (A3feat training data); hidden nodes keep the
     last feature from a frame where at least 90% of their largest seen mask area was visible.
     """
-    import torch
+    import cv2
 
     objs = rep.scene["objects"]
     T, N = len(rep.front_rgb), len(objs)
     frames = range(T) if frames is None else frames
-    feats = np.zeros((T, N, processor_or_encoder.feature_dim), np.float32)
+    feats = np.zeros((T, N, processor.feature_dim), np.float32)
     best_area = np.zeros(N)
-    last = np.zeros((N, processor_or_encoder.feature_dim), np.float32)
+    last = np.zeros((N, processor.feature_dim), np.float32)
     for t in frames:
-        masks, areas = [], []
-        for o in objs:
-            m = np.isin(rep.front_seg[t], rep.scene["seg_ids"][o["node"]])
-            masks.append(torch.from_numpy(m.astype(np.float32)))
-            areas.append(m.sum())
-        bm = torch.stack(masks)[None]
-        import cv2
-
-        rep_t, _ = processor_or_encoder._obtain_features(
-            cv2.cvtColor(rep.front_rgb[t], cv2.COLOR_RGB2BGR), bm
+        masks = np.stack(
+            [np.isin(rep.front_seg[t], rep.scene["seg_ids"][o["node"]]) for o in objs]
         )
-        rep_t = rep_t[0, 1:].numpy()
+        areas = masks.sum((1, 2))
+        rep_t = processor.obtain_features(
+            cv2.cvtColor(rep.front_rgb[t], cv2.COLOR_RGB2BGR), masks
+        )[1:]
         for n in range(N):
             best_area[n] = max(best_area[n], areas[n])
             if areas[n] > 0 and areas[n] >= 0.9 * best_area[n]:
@@ -1099,11 +1445,17 @@ def draw_markers(image: np.ndarray, nodes: list[dict], size: int = 6) -> np.ndar
 
 
 def serialize(nodes: list[dict], instruction: str) -> str:
-    """A2: instruction + fixed-template object list (integer pixels)."""
+    """A2: instruction + fixed-template object list (integer pixels).
+
+    Positions use RoboMME's grounded-subgoal convention, 'at <row, col>' = <v, u> (the dataset's
+    "pick up the container at <100, 139> ..."; env_record_wrapper/DemonstrationWrapper.py:570).
+    """
     parts = []
     for nd in nodes:
         pos = (
-            "unknown" if nd["u"] is None else f"({int(round(nd['u']))}, {int(round(nd['v']))})"
+            "at unknown"
+            if nd["u"] is None
+            else f"at <{int(round(nd['v']))}, {int(round(nd['u']))}>"
         )
         parts.append(
             f"[{nd['id']} {nd['label']}, {'hidden' if nd['hidden'] else 'visible'}, {pos}]"
@@ -1400,10 +1752,16 @@ def train(
     log_every: int = 10,
     device: str = "cuda",
 ) -> dict:
-    """Fine-tune one arm. Training graphs are always Q0. Returns the loss history and timing."""
+    """Fine-tune one arm. Training graphs are always Q0. Returns the loss history and timing.
+
+    steps_per_s counts every step; steps_per_s_steady excludes step 0 (CUDA/cuDNN warm-up and the first
+    DataLoader batch), which is the rate to extrapolate from.
+    """
     import torch
 
     set_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.reset_peak_memory_stats()
     episodes = []
     for task in tasks:
         for p in sorted((CACHE_DIR / task).glob("ep*_replay.npz"))[:episodes_per_task]:
@@ -1456,7 +1814,9 @@ def train(
         loss.backward()
         torch.nn.utils.clip_grad_norm_(params, 10.0)
         opt.step()
-        hist.append(float(loss.item()))
+        hist.append(float(loss.item()))  # .item() synchronises, so step times are real
+        if step == 0:
+            t_first = time.time()
         if step % log_every == 0:
             print(
                 f"step {step:6d}  loss {hist[-1]:.4f}  {(step + 1) / (time.time() - t0):.2f} it/s"
@@ -1478,6 +1838,7 @@ def train(
         label_mode=label_mode,
         seconds=dt,
         steps_per_s=steps / dt,
+        steps_per_s_steady=(steps - 1) / (t0 + dt - t_first) if steps > 1 else None,
         loss=hist,
         trainable_params=trainable_parameters(policy, tok),
         max_mem_GB=(
@@ -1522,31 +1883,18 @@ class OnlineGraph:
         rule: str = "bound",
         level: str = "Q0",
         seed: int = 0,
-        target: int = 0,
-        counterfactual_to: int | None = None,
+        targets: list[int] | None = None,
+        counterfactual_to: dict[int, int] | None = None,
     ):
-        self.scene, self.level, self.seed, self.target = scene, level, seed, target
+        """targets: the episode's ordered targets; the caller sets self.active (an ActiveTarget
+        result) before each step. counterfactual_to: {target: wrong container} for 10.5."""
+        self.scene, self.level, self.seed = scene, level, seed
+        self.targets = list(targets or [])
+        self.active = self.targets[0] if self.targets else None
         self.N = len(scene["objects"])
         self.tracker = GraphTracker(self.N, rule)
         self.cf = counterfactual_to
-        self.rng = np.random.default_rng(seed)
-        self.q1 = (
-            self.rng.normal(0, float(level.split("_")[1]), 2)
-            if level.startswith("Q1_")
-            else None
-        )
-        self.q2_other = None
-        if level.startswith("Q2_") and self.rng.random() < float(level.split("_")[1]) / 100:
-            true_bin = scene["cube_to_bin"].get(target)
-            self.q2_other = int(
-                self.rng.choice(
-                    [
-                        o["node"]
-                        for o in scene["objects"]
-                        if o["label_id"] == 0 and o["node"] != true_bin
-                    ]
-                )
-            )
+        self.q1, self.q2 = draw_corruption(level, seed, self.targets, scene)
         self.history: list[np.ndarray] = []
 
     def step(
@@ -1581,26 +1929,14 @@ class OnlineGraph:
         ok = hid & np.all(np.isfinite(f[:, F_X : F_Z + 1]), 1)
         if ok.any():
             f[ok, F_U : F_V + 1] = project_points(f[ok, F_X : F_Z + 1], K, E)
-        tg = self.target
-        if f[tg, F_HIDDEN] == 1:
-            if self.cf is not None:
-                f[tg, F_X : F_Z + 1], f[tg, F_U : F_V + 1] = (
-                    f[self.cf, F_X : F_Z + 1],
-                    f[self.cf, F_U : F_V + 1],
-                )
-            elif self.q1 is not None and np.all(np.isfinite(f[tg, F_X : F_Z + 1])):
-                u, v = project_points(f[tg, F_X : F_Z + 1], K, E)[0] + self.q1
-                cam = E[:3, :3] @ f[tg, F_X : F_Z + 1] + E[:3, 3]
-                ray = (
-                    np.array([(u - K[0, 2]) / K[0, 0], (v - K[1, 2]) / K[1, 1], 1.0]) * cam[2]
-                )
-                f[tg, F_X : F_Z + 1] = (cam_to_world(E) @ np.r_[ray, 1.0])[:3]
-                f[tg, F_U : F_V + 1] = (u, v)
-            elif self.q2_other is not None:
-                f[tg, F_X : F_Z + 1], f[tg, F_U : F_V + 1] = (
-                    f[self.q2_other, F_X : F_Z + 1],
-                    f[self.q2_other, F_U : F_V + 1],
-                )
+        tg = self.active
+        if tg is not None and f[tg, F_HIDDEN] == 1:
+            wrong = (self.cf or self.q2 or {}).get(tg)
+            if wrong is not None:
+                f[tg, F_X : F_Z + 1] = f[wrong, F_X : F_Z + 1]
+                f[tg, F_U : F_V + 1] = f[wrong, F_U : F_V + 1]
+            elif self.q1 is not None:
+                _offset_node(f, tg, self.q1, K, E)
         self.history.append(f)
         return f
 
@@ -1618,17 +1954,12 @@ class OnlineFeatures:
 
     def step(self, rgb: np.ndarray, seg: np.ndarray) -> np.ndarray:
         import cv2
-        import torch
 
-        masks, areas = [], []
-        for o in self.scene["objects"]:
-            m = np.isin(seg, self.scene["seg_ids"][o["node"]])
-            masks.append(torch.from_numpy(m.astype(np.float32)))
-            areas.append(m.sum())
-        rep_t, _ = self.proc._obtain_features(
-            cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR), torch.stack(masks)[None]
+        masks = np.stack(
+            [np.isin(seg, self.scene["seg_ids"][o["node"]]) for o in self.scene["objects"]]
         )
-        rep_t = rep_t[0, 1:].numpy()
+        areas = masks.sum((1, 2))
+        rep_t = self.proc.obtain_features(cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR), masks)[1:]
         for n, a in enumerate(areas):
             self.best[n] = max(self.best[n], a)
             if a > 0 and a >= 0.9 * self.best[n]:
@@ -1649,7 +1980,7 @@ class PerceivedOnline:
         self.scene = {"objects": []}
         for s, c in enumerate(processor.classes):
             is_cont = c.startswith("container")
-            text = "container" if is_cont else c.replace(".cube.", " cube").rstrip(".")
+            text = "container" if is_cont else c.rstrip(".")
             self.scene["objects"].append(
                 dict(
                     node=s,
@@ -1751,15 +2082,18 @@ def evaluate(
             "seg_ids": scene["seg_ids"],
             "n_bins": scene["n_bins"],
         }
-        tgt = target_cube_node(sc, goal)
+        targets = target_cube_nodes(sc, goal)
+        tgt = targets[0]
         cf_to = None
         if counterfactual:
-            true_bin = scene["cube_to_bin"].get(tgt)
-            cf_to = next(
-                o["node"]
-                for o in sc["objects"]
-                if o["label_id"] == 0 and o["node"] != true_bin
-            )
+            cf_to = {
+                c: next(
+                    o["node"]
+                    for o in sc["objects"]
+                    if o["label_id"] == 0 and o["node"] != scene["cube_to_bin"][c]
+                )
+                for c in targets
+            }
         K = np.asarray(info["front_camera_intrinsic"], np.float32).reshape(3, 3)
         Kw = np.asarray(info["wrist_camera_intrinsic"], np.float32).reshape(3, 3)
         need_proc = quality == "Q3" or interface == "A3feat"
@@ -1772,17 +2106,18 @@ def evaluate(
         if quality == "Q3":
             online = PerceivedOnline(proc)
             node_scene = online.scene
-            tgt_nodes = [
-                o["node"]
-                for o in node_scene["objects"]
-                if o["label_id"] == 1 and o["text"] in goal
-            ]
-            tgt_policy = tgt_nodes[0] if tgt_nodes else None
+            # the perceived slot of the first target, found by its colour word
+            tgt_text = next(o["text"] for o in sc["objects"] if o["node"] == tgt)
+            tgt_policy = next(
+                (o["node"] for o in node_scene["objects"] if o["text"] == tgt_text), None
+            )
         else:
             online = OnlineGraph(
-                sc, "bound", quality, seed=ep, target=tgt, counterfactual_to=cf_to
+                sc, "bound", quality, seed=ep, targets=targets, counterfactual_to=cf_to
             )
             node_scene, tgt_policy = sc, tgt
+        all_actors = [o["actor"] for o in scene["objects"]]
+        active_t = ActiveTarget(targets, scene["cube_to_bin"])
         feat_src = (
             OnlineFeatures(proc, sc) if (interface == "A3feat" and quality != "Q3") else None
         )
@@ -1818,6 +2153,12 @@ def evaluate(
                         feats = feat_src.step(rgb, seg)
             return f, feats
 
+        def set_active():
+            a = active_t.update(np.stack([actor_xyz(x) for x in all_actors]))
+            if quality != "Q3":
+                online.active = a
+
+        set_active()
         f, feats = feed(obs, None, None)
         first_target_uv = None
         if f is not None and tgt_policy is not None:
@@ -1864,16 +2205,20 @@ def evaluate(
                     )
                 )
             obs, _, term, trunc, info = env.step(a)
+            set_active()
             if len(obs["front_rgb_list"]):
                 f, feats = feed(obs, f, feats)
             steps += 1
             if lifted is None:
                 for n, actor in bin_actors.items():
                     if actor_xyz(actor)[2] - z0[n] > 0.03:
+                        # judged against the first target, which is active until it is picked
                         lifted = n
                         break
             if bool(_np(term).reshape(-1)[0]) or bool(_np(trunc).reshape(-1)[0]):
                 status = info.get("status", "unknown")
+        last_bin_up = actor_xyz(bin_actors[active_t.bins[-1]])[2] > PICK_Z
+        targets_picked = active_t.k + int(active_t.k == len(targets) - 1 and last_bin_up)
         env.close()
         t_ep.append(time.time() - t0)
         results.append(
@@ -1882,10 +2227,12 @@ def evaluate(
                 status=status,
                 success=status == "success",
                 steps=steps,
+                targets=targets,
                 target=tgt,
                 true_bin=scene["cube_to_bin"].get(tgt),
+                targets_picked=targets_picked,
                 lifted_bin=lifted,
-                counterfactual_bin=cf_to,
+                counterfactual_bin=None if cf_to is None else cf_to[tgt],
                 first_target_uv=first_target_uv,
                 seconds=t_ep[-1],
             )
@@ -1893,7 +2240,7 @@ def evaluate(
         print(
             f"episode {ep}: {status} in {steps} steps ({t_ep[-1]:.0f} s); lifted container "
             f"{lifted} (true {scene['cube_to_bin'].get(tgt)}, graph-named "
-            f"{cf_to if counterfactual else 'n/a'})"
+            f"{cf_to[tgt] if counterfactual else 'n/a'}); targets {targets}"
         )
     if gp is not None:
         flow.embed_prefix = gp.orig
@@ -1915,12 +2262,20 @@ def evaluate(
     if save_strip is not None and strip:
         import matplotlib.pyplot as plt
 
-        fig, axes = plt.subplots(1, len(strip), figsize=(3 * len(strip), 3.6))
-        for ax, (s, img, txt) in zip(np.atleast_1d(axes), strip):
+        import textwrap
+
+        cols = min(6, len(strip))
+        rows = -(-len(strip) // cols)
+        fig, axes = plt.subplots(rows, cols, figsize=(3.2 * cols, 4.6 * rows), squeeze=False)
+        for ax in axes.flat:
+            ax.axis("off")
+        for ax, (s, img, txt) in zip(axes.flat, strip):
             ax.imshow(img)
             ax.set_title(f"step {s}", fontsize=8)
-            ax.set_xlabel(txt[-60:], fontsize=5)
-            ax.set_xticks([]), ax.set_yticks([])
+            # the policy's input text: the object list (the instruction is the same every step)
+            objs = txt.split("Objects: ", 1)[-1]
+            ax.text(0, -0.02, textwrap.fill(objs, 52), transform=ax.transAxes, fontsize=4.5,
+                    va="top", ha="left", family="monospace")
         fig.suptitle(f"{interface} rollout, {task}, {quality} (markers = graph positions)")
         fig.tight_layout()
         fig.savefig(save_strip, dpi=130)
