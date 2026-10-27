@@ -5,6 +5,7 @@ Example:
   python eval.py --ckpt runs/A2_s0 --interface A2 --task VideoUnmaskSwap --quality Q0 --episodes 50 \
       --out results/A2_s0_VideoUnmaskSwap_Q0.json
   python eval.py ... --counterfactual        # graph names the wrong container for the hidden target
+The policy family (smolvla, pi05) is read from the checkpoint's train_info.json unless --policy is given.
 """
 
 import argparse
@@ -22,6 +23,8 @@ def main():
     ap.add_argument("--episodes", type=int, default=50)
     ap.add_argument("--max-steps", type=int, default=1300)
     ap.add_argument("--counterfactual", action="store_true")
+    ap.add_argument("--policy", choices=["smolvla", "pi05"], default=None)
+    ap.add_argument("--episode-offset", type=int, default=0)
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
     s = sg.evaluate(
@@ -33,6 +36,8 @@ def main():
         Path(a.out),
         a.max_steps,
         a.counterfactual,
+        episode_offset=a.episode_offset,
+        policy_name=a.policy,
     )
     lo, hi = s["wilson95"]
     print(

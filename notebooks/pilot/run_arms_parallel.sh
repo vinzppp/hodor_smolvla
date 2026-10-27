@@ -5,6 +5,8 @@
 #   ./run_arms_parallel.sh --interfaces A0,A2 --label pilot              # pilot arms, one GPU each
 #   ./run_arms_parallel.sh --interfaces A0,A1,A2,A3,A3feat --seed 1 \
 #       --tasks VideoUnmask,VideoUnmaskSwap,ButtonUnmask,ButtonUnmaskSwap --label grid_s1
+#   ./run_arms_parallel.sh --policy pi05 --interfaces A0,A1,A2,A3 --tasks permanence \
+#       --steps 80000 --batch 32 --accum 2 --label pi05_s0                 # pi0.5, RoboMME recipe
 #   ./run_arms_parallel.sh --label pilot --status                         # progress of a running set
 #
 # More arms than GPUs: arms are dealt round-robin and each window trains its arms one after another.
@@ -16,12 +18,14 @@ set -euo pipefail
 
 PILOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PY=${SG_MAIN_PYTHON:-/workspace/envs/sg-main/bin/python}
+POLICY=smolvla
 INTERFACES=A0,A2
 TASKS=VideoUnmaskSwap
 SEED=0
 STEPS=20000          # notebook Step 9.6: ~2.4 h per arm at batch 32 on one RTX 4090
 EPISODES=100
 BATCH=32
+ACCUM=1
 LABEL=pilot
 GPUS=""
 STATUS=0
@@ -29,21 +33,24 @@ DRY=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
+    --policy) POLICY=$2; shift 2 ;;
     --interfaces) INTERFACES=$2; shift 2 ;;
     --tasks) TASKS=$2; shift 2 ;;
     --seed) SEED=$2; shift 2 ;;
     --steps) STEPS=$2; shift 2 ;;
     --episodes) EPISODES=$2; shift 2 ;;
     --batch) BATCH=$2; shift 2 ;;
+    --accum) ACCUM=$2; shift 2 ;;
     --label) LABEL=$2; shift 2 ;;
     --gpus) GPUS=$2; shift 2 ;;
     --status) STATUS=1; shift ;;
     --dry-run) DRY=1; shift ;;
-    -h|--help) sed -n '2,16p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,19p' "$0"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
 
+[ "$TASKS" = permanence ] && TASKS=VideoUnmask,VideoUnmaskSwap,ButtonUnmask,ButtonUnmaskSwap
 LOGDIR=/workspace/logs/train/$LABEL
 RUNDIR=$PILOT_DIR/runs
 SESSION=sg-train-$LABEL
@@ -71,7 +78,8 @@ IFS=, read -r -a ARM_LIST <<< "$INTERFACES"
 for t in ${TASKS//,/ }; do
   n=$(ls "$PILOT_DIR/cache/$t"/ep*_graph.npz 2>/dev/null | wc -l)
   if [ "$n" -lt "$EPISODES" ]; then
-    echo "cache for $t has $n graph files, need $EPISODES: run the notebook (Steps 3.6 and 7) in pilot mode first," >&2
+    echo "cache for $t has $n graph files, need $EPISODES: run the notebook (Steps 3.6 and 7) in pilot mode," >&2
+    echo "or tools/build_cache.py --task $t --episodes $EPISODES, first," >&2
     echo "or pass --episodes $n" >&2
     exit 1
   fi
@@ -84,7 +92,7 @@ if tmux has-session -t "$SESSION" 2>/dev/null; then
 fi
 
 mkdir -p "$LOGDIR" "$RUNDIR"
-echo "label $LABEL | tasks $TASKS | seed $SEED | steps $STEPS | episodes/task $EPISODES | batch $BATCH"
+echo "label $LABEL | policy $POLICY | tasks $TASKS | seed $SEED | steps $STEPS | episodes/task $EPISODES | batch $BATCH x $ACCUM"
 
 # Deal arms round-robin over the GPUs and write one runner script per GPU
 declare -A ASSIGN
@@ -110,8 +118,8 @@ for g in "${GPU_LIST[@]}"; do
       log=$LOGDIR/${arm}_s$SEED.log
       echo "if [ -f '$out/train_info.json' ]; then echo 'skip $arm: $out/train_info.json exists'; echo skipped > '$LOGDIR/${arm}_s$SEED.status'; else"
       echo "  echo \"[\$(date '+%F %T')] GPU $g: $arm start\" | tee -a '$log'"
-      echo "  '$PY' train.py --interface $arm --tasks $TASKS --seed $SEED --steps $STEPS \\"
-      echo "    --episodes-per-task $EPISODES --batch-size $BATCH --out '$out' 2>&1 | tee -a '$log'"
+      echo "  '$PY' train.py --policy $POLICY --interface $arm --tasks $TASKS --seed $SEED --steps $STEPS \\"
+      echo "    --episodes-per-task $EPISODES --batch-size $BATCH --accum $ACCUM --out '$out' 2>&1 | tee -a '$log'"
       echo "  rc=\$?; echo \"exit \$rc\" > '$LOGDIR/${arm}_s$SEED.status'"
       echo "  echo \"[\$(date '+%F %T')] GPU $g: $arm exit \$rc\" | tee -a '$log'"
       echo "fi"

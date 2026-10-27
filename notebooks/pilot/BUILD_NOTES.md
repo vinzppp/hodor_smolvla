@@ -117,6 +117,84 @@ Everything the run needs is on the volume: venvs (`/workspace/envs`), sources (`
 - Grid seeds use the same script, e.g. `--interfaces A0,A1,A2,A3,A3feat --tasks VideoUnmask,VideoUnmaskSwap,ButtonUnmask,ButtonUnmaskSwap --seed 1 --label grid` (needs the cache for all four tasks).
 - Tested on the 1-GPU pod (2 episodes, 5 steps): A0 and A3 trained through `train.py` in the tmux window (exit 0; A3 saved `graph_tokenizer.pt`, 6,761,153 trainable parameters as in 8.5), and a re-launch skipped both.
 
+## RoboMME paper's training recipe (arXiv 2603.04639 v3, read 2026-10-27)
+Source text saved in `/workspace/papers/robomme_2603.04639/` (`paper.html`, `paper.txt`). The MME-VLA suite (Appendix B.2.3, Table 6; §5.1):
+
+| | RoboMME (MME-VLA, Table 6 / §5.1) | this pilot (SmolVLA) |
+|---|---|---|
+| Base model | π0.5 base (3.2B parameters; "576 observation tokens: 512 visual tokens from two images and 64 language tokens") | smolvla_base (~0.45B) |
+| Trained parameters | VLM expert and action expert in full, plus any memory parameters; SigLIP vision backbone frozen, visual tokens precomputed and cached | LoRA r=64 (q/v of the VLM text layers and action expert, plus projections) |
+| Training set | **multi-task**: "All models are trained in a multi-task learning setting" (one model, 16 tasks, 1,600 demos) | VideoUnmaskSwap only, 100 demos |
+| Steps | 80,000 | 20,000 |
+| Batch size | 64 (symbolic/perceptual memory), 16 (recurrent) | 32 |
+| Learning rate | 5e-5, constant, 10,000 warm-up steps | 1e-3, constant, no warm-up |
+| Optimizer | AdamW (β1 0.9, β2 0.95, weight decay 0) | AdamW (default betas, weight decay 1e-4) |
+| Gradient clip | 1.0 | 10.0 |
+| EMA | decay 0.999 | none |
+| Action horizon | 20 trained; "execute the first 16 steps during evaluation" | 50 trained, 50 executed |
+| Action space | joint space | joint space |
+| Proprioception | **excluded** ("we found that they do not bring benefits") | state given (7 joints + finger) |
+| Normalisation | quantile (q1, q99) for all methods except Diffusion Policy (min-max), B.6 | mean/std from lerobot/robomme, pooled over 16 tasks |
+| Starting config | "the released π0.5 configuration from the LIBERO benchmark" | LeRobot SmolVLA defaults |
+| Hardware / time | 4×A40 (FSDP): symbolic ~3 days, perceptual 3-4 days, TTT 5-6 days; RMT on 2×H100, 2-3 days | 1×RTX 4090, 2.4 h per arm |
+| Evaluation | 50 episodes per task, max 1,300 steps, seeds distinct from training; averaged over the last three checkpoints × three seeds (nine runs) | 50 episodes, max 1,300 steps, final checkpoint, one seed |
+| Code | github.com/RoboMME/robomme_policy_learning | notebooks/pilot |
+
+Reference numbers on VideoUnmaskSwap (Table 15, success %, mean ± sd over runs): π0.5 without memory 18.67 ± 4.24; π0.5 with past actions 20.67 ± 3.01; best perceptual memory (TokenDrop + Modul) 28.44 ± 3.71; MemER 38.00 ± 0.00; symbolic memory with oracle grounded subgoals (GroundSG + Oracle) 99.22 ± 1.04, which is the "correct container pixel as text" upper bound At a Glance cites. Overall average of π0.5 without memory over all 16 tasks: 17.93 ± 0.61 (Table 12).
+
+### Follow-up tests (2026-10-27, 1×RTX 4090, 46 GB RAM pod)
+- **Pipeline sanity** (`tools/sanity_eval.py`): recorded demo actions of training episodes 0-4, normalised and passed back through the policy postprocessor (round trip 1.2e-7), succeed in evaluate's env (5/5). The pilot checkpoints on the same training episodes: A0 3/5, A2 4/5. On test episodes they fail mostly by never lifting a container, so the evaluation path is sound and the gap is generalisation.
+- **Val episodes 0-19, Q0, n_action_steps 16 vs 50:** A0 0/20 and 1/20, A2 0/20 and 1/20; timeouts 19/18 (16) and 17/15 (50) of 20. Executing 16 of each chunk does not help these checkpoints (they were trained on 50-step chunks).
+- **π0.5 + LoRA fit** (`tools/pi05_fit.py`, lerobot/pi05_base, bf16, SigLIP frozen, LoRA r=64 on language-model and action-expert q/v + projections: 76 modules, 12.8M trainable of 4.16B, chunk 20): batch 32 without gradient checkpointing runs out of memory; with checkpointing it fits at 17.9 GB peak allocated (19.8 GB reserved), 4.13 s/step (7.7 samples/s). RoboMME's 80k steps × batch 64 by 2-step accumulation: ~184 h ≈ 7.7 days on one 4090. This is LoRA with live SigLIP encoding; the paper fine-tunes the VLM and action experts in full with cached visual tokens on 4×A40.
+- π0.5 needs the gated `google/paligemma-3b-pt-224` tokenizer (HF login on the pod, token stored in `$HF_HOME`, not in the project) and quantile statistics, which `lerobot/robomme` does not provide.
+
+## π0.5 version (2026-10-27)
+`sg_interfaces_pilot.ipynb` (SmolVLA) stays as the v1 record. `sg_interfaces_pi05.ipynb` is generated from it by `_build/make_pi05_notebook.py`: title, At a Glance (unchanged, to be rewritten after a pilot), Setup and Steps 1-7 are the same cells and the same code (`sg_pilot.py`); Steps 8-10 are rewritten for π0.5.
+
+### Files
+- `pi05_policy.py`: the π0.5 backend. `build_policy` (lerobot/pi05_base through LeRobot's `make_policy`, bf16, SigLIP frozen, gradient checkpointing, LoRA r=64 on the language model's and action expert's q/v plus the action/time projections: 76 modules, 12.8M trainable), `make_processors`, `quantile_stats`, `GraphPrefix` (A3), `d_model`, `text_embed_fn`, `make_optimizer` + `EMA`, `SiglipCache`, `estimate_recipe_hours`.
+- `sg_pilot.py`: `get_backend("smolvla" | "pi05")` gives the shared `train()` / `evaluate()` loops what they need (build, A3 prefix wrapper, token width, label-text embedding, optimiser recipe, statistics). The SmolVLA backend keeps the v1 settings exactly (lr 1e-3, weight decay 1e-4, clip 10, no schedule, no EMA). `train()` also gained multi-task loading (all listed tasks, error if a cache is short), gradient accumulation (`accum_steps`), EMA saving and `norm_stats.json` next to the checkpoint; `evaluate()` reads the policy family from `train_info.json` and the statistics from the checkpoint. `SGDataset` samples carry a `sample_key` (popped before the model).
+- `scene_objects`: VideoUnmask and ButtonUnmask keep their cube list local; cubes are now read from `target_cube_<i>` and paired with `spawned_bins[i]` (the cube is spawned at that bin's position, `robomme_env/VideoUnmask.py` / `ButtonUnmask.py` `_load_scene`). Checked on all four permanence tasks (6 objects each on training episode 0, targets parsed, every object has segmentation ids).
+- `load_replay` accepts slim files (missing arrays become empty); `tools/build_cache.py` builds slim training caches for further tasks (training data only, cut to the policy frames: ~75 MB per episode vs ~130 MB full; identical training samples, checked on 3 episodes). Not run for the other tasks yet.
+- `train.py`: `--policy {smolvla,pi05}`, `--tasks permanence`, `--accum`, `--siglip-cache`; `--lr` defaults to the policy's recipe. `eval.py`: `--policy` (default: from the checkpoint), `--episode-offset`. `run_arms_parallel.sh`: `--policy`, `--accum`, `--tasks permanence`.
+
+### Recipe as implemented (RoboMME B.2.3 / Table 6, adapted to one 24 GB GPU)
+| | RoboMME | here |
+|---|---|---|
+| trained parameters | VLM + action expert in full, SigLIP frozen | LoRA r=64 on both (full fine-tuning of 3.2B does not fit in 24 GB), SigLIP frozen |
+| batch | 64 | 32 x 2 accumulation steps |
+| chunk / executed | 20 / 16 | 20 / 16 |
+| proprioception | excluded | excluded: the processor's state-in-prompt step runs with `include_state_in_prompt=False` (stock π0.5 writes the state into the prompt as 256-bin tokens). The state still passes through the normaliser but reaches the model nowhere. |
+| normalisation | quantiles q1/q99 | q01/q99 computed from our training data (`quantile_stats`, cached in `cache/norm_stats/`); lerobot/robomme has no quantiles, and the normaliser passes a feature through unchanged when its stats are missing, so `build_policy` checks for them |
+| optimiser | AdamW (0.9, 0.95), wd 0, lr 5e-5, 10k warm-up then constant, clip 1.0, EMA 0.999 | same; warm-up min(10k, steps/8) so shorter runs keep the paper's proportion; the EMA weights are saved and evaluated |
+| visual tokens | precomputed and cached | optional `SiglipCache`, off: 1 MiB per image (256 x 2048 bf16), ~37 GiB for VideoUnmaskSwap's training set, ~150 GiB for the four tasks |
+| multi-task | one model, 16 tasks | one model over the four permanence tasks (`--tasks permanence`) |
+
+### Interfaces: what differs from SmolVLA
+- **A0**: π0.5 sees no state at all (SmolVLA v1 had a state token).
+- **A1**: same markers; π0.5 resizes 256 -> 224 with padding (SmolVLA: 512), so the marker size is re-checked in 8.2 (one SigLIP patch = 14 px at 224, i.e. 16 px of the original image).
+- **A2**: the object list is appended to the task text inside π0.5's prompt `Task: <instruction. Objects: ...>;\nAction: `; `tokenizer_max_length` raised from 200 to 256 and checked against the worst case in 8.3.
+- **A3**: graph tokens appended at the end of π0.5's prefix, after the prompt tokens (π0.5 has no state token to insert before, as in SmolVLA); attention flag 0 (bidirectional within the prefix), node mask as pad mask; prompt padding sits before them, which the position ids (cumulative sum of the pad mask) skip.
+- **Padded actions**: π0.5's training loss has no `action_is_pad` mask (`PI05Policy.forward`), so the repeated last action at the end of an episode counts in the loss; SmolVLA masks it.
+- **A3feat** is not part of the π0.5 set (slim caches store no DINOv2 features).
+- **Button tasks**: no conditioning video (1 reset frame); their two buttons are not graph nodes (the graph has containers and cubes only); their containers start off the table at reset.
+
+### Requirements on the pod
+- HF login with access to the gated `google/paligemma-3b-pt-224` tokenizer (token in `$HF_HOME`, not in the project).
+- `lerobot/pi05_base` weights (14.5 GB, float32 on disk) in the HF cache on the volume.
+
+### Smoke run of sg_interfaces_pi05.ipynb (2026-10-27, VideoUnmaskSwap, 1×RTX 4090)
+All 117 cells run on a fresh `sg-main` kernel in 1,421 s; 35 checks PASS, none FAIL (Steps 1-7 as in v1). Executed copy: `/workspace/logs/pi05_smoke/run.ipynb`.
+- 8.1: π0.5 defaults printed with file:line (chunk 50 / execute 50, tokenizer 200, float32, vision encoder not frozen, quantile normalisation; the prompt with and without state, `processor_pi05.py:85/88`; prefix builder `modeling_pi05.py:779`; loss `:1600`). Values used: chunk 20, execute 16, tokenizer 256, bf16, SigLIP frozen, gradient checkpointing. Prefix of one sample: 768 tokens = 2 x 256 image + 256 prompt slots (22 used); prompt `Task: ...;\nAction: `, no state.
+- 8.3: worst-case A2 prompt over the training frames 133 tokens (limit 256), nothing truncated.
+- 8.4: A3 prefix 768 -> 776 (6 nodes + 2 masked pads, attention flag 0); `select_action` returns (1, 8) with 15 actions left in the queue.
+- 8.5: trainable parameters A0/A1/A2 12,783,616; A3 +1,093,633 (graph tokenizer at width 2048).
+- 9.1: q01/q99 from the training data (smoke: 2 episodes); the gripper action spans exactly [-1, 1].
+- 9.3: A0, A1, A2, A3 each trained 10 steps at batch 8 (gradient checkpointing, EMA, warm-up 1 step): loss finite (0.46-0.76 at step 0, 0.52-0.57 at step 5); the EMA adapter (152 tensors) and `norm_stats.json` saved.
+- 9.4: batch 32: 0.231 steps/s (A0) and 0.230 (A2), peak GPU 18.9 GB; the notebook's estimate for 80k steps at 32 x 2 is ~193 h per arm on one 4090.
+- 10.1-10.2: checkpoint reports chunk 20 / execute 16, EMA on; A2 on 2 test episodes and A3 on 1 run end to end (each 1,300 steps without a lift, 42-43 s per episode; expected after 10 training steps).
+
 ### Open
+- π0.5: build the other three tasks' caches (`tools/build_cache.py`; disk: each task's H5 must be extracted first; at VideoUnmaskSwap's measured 14x extraction ratio that is ~17 GB for VideoUnmask, ~30 GB for ButtonUnmask, ~44 GB for ButtonUnmaskSwap (ratio unmeasured for those), with ~12 GB free on the volume) and train only after a decision on the direction.
 - Write the "= ?" readings and At a Glance from the executed outputs, then the build-ipynb checker, self-check and HTML render.
 - Node count varies per episode (episode 3 has 4 containers, 7 nodes). `node_tensor` pads to 8 slots with a mask, so A3 handles it, but no 7-node episode has been through training yet (smoke uses episodes 0-1); pilot mode exercises it.

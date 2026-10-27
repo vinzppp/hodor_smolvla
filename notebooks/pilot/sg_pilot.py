@@ -305,6 +305,14 @@ def scene_objects(env) -> dict:
     bins = list(getattr(base, "spawned_bins", []))
     cubes = list(getattr(base, "spawned_dynamic_cubes", []))
     pairs = list(getattr(base, "cube_bin_pairs", []))
+    if not cubes:
+        # VideoUnmask / ButtonUnmask keep their cube list local and expose target_cube_<i> instead, each
+        # cube spawned at the position of spawned_bins[i] (robomme_env/VideoUnmask.py _load_scene)
+        i = 0
+        while hasattr(base, f"target_cube_{i}"):
+            cubes.append(getattr(base, f"target_cube_{i}"))
+            i += 1
+        pairs = list(zip(cubes, bins))
     colors = list(getattr(base, "color_names", []))
     objs = []
     for i, b in enumerate(bins):
@@ -528,14 +536,44 @@ def save_replay(rep: Replay, path: Path) -> None:
     np.savez_compressed(path, meta=json.dumps(meta, default=str), **arrays)
 
 
-def load_replay(path: Path) -> Replay:
+def load_replay(path: Path, keys: list[str] | None = None) -> Replay:
+    """A cached replay. keys: load only these arrays (others become empty), e.g. to keep RAM low;
+    a full replay is ~0.5 GB in memory (depth and segmentation of every frame, both cameras)."""
+    import dataclasses
+
     z = np.load(path, allow_pickle=False)
     meta = json.loads(str(z["meta"]))
     meta["scene"]["cube_to_bin"] = {
         int(k): int(v) for k, v in meta["scene"]["cube_to_bin"].items()
     }
     meta["scene"]["seg_ids"] = {int(k): v for k, v in meta["scene"]["seg_ids"].items()}
-    return Replay(**{k: z[k] for k in z.files if k != "meta"}, **meta)
+    arrays = [k for k in z.files if k != "meta"]
+    want = arrays if keys is None else [k for k in arrays if k in keys]
+    data = {k: z[k] for k in want}
+    for f in dataclasses.fields(Replay):  # skipped or absent arrays: empty, so a wrong use fails loudly
+        if f.name not in data and f.name not in meta and f.default is dataclasses.MISSING:
+            data[f.name] = np.zeros(0)
+    return Replay(**data, **meta)
+
+
+TRAIN_KEYS = ["front_rgb", "wrist_rgb", "joint_state", "gripper_state", "policy_frame", "actions"]
+
+
+def load_training_episode(path: Path, with_feats: bool = False):
+    """(replay, Q0 graph, features) for SGDataset, cut to the policy frames.
+
+    Training reads only the two cameras, the robot state and the graph at the frames the policy acted on,
+    so every per-frame array is indexed by policy_frame and policy_frame becomes 0..K-1. ~70 MB per
+    VideoUnmaskSwap episode instead of ~0.5 GB, so 100 episodes fit in the pod's 46 GB.
+    """
+    rep = load_replay(path, TRAIN_KEYS)
+    gc = load_graph_cache(path.with_name(path.name.replace("_replay", "_graph")))
+    pf = rep.policy_frame.astype(int)
+    for k in ["front_rgb", "wrist_rgb", "joint_state", "gripper_state"]:
+        setattr(rep, k, np.ascontiguousarray(getattr(rep, k)[pf]))
+    rep.policy_frame = np.arange(len(pf))
+    feats = gc.get("oracle_feats")
+    return rep, gc["Q0"][pf], (feats[pf] if (with_feats and feats is not None) else None)
 
 
 PICK_Z = 0.15  # metres: RoboMME counts a container as picked up when its pose z exceeds this
@@ -805,17 +843,33 @@ def target_error(
 QUALITY_LEVELS = ["Q0", "Q1_20", "Q1_50", "Q2_25", "Q2_50", "Q3"]
 
 
-def draw_corruption(level: str, seed: int, targets: list[int], scene: dict):
-    """The per-episode random draws of a quality level, shared by corrupt() and OnlineGraph.
+Q2_POOL = 50  # RoboMME test episodes per task; Q2 fixes which of them are corrupted
+Q2_SELECT_SEED = 0
 
-    Returns (q1, q2): q1 = the (du, dv) pixel offset for Q1_s, else None; q2 = {target: wrong
-    container} for Q2_p when the episode's Bernoulli draw fires, else None. Each target gets its own
-    fixed wrong container, chosen among the containers that do not hide it.
+
+def q2_fires(level: str, episode: int, pool: int = Q2_POOL, select_seed: int = Q2_SELECT_SEED) -> bool:
+    """Q2_p corrupts a fixed share of the test episodes: ceil(p * pool) of them (13 for Q2_25, 25 for
+    Q2_50 with pool 50), taken from the front of one fixed permutation of the pool. So the counts are
+    exact rather than Bernoulli, and every Q2_25 episode is also a Q2_50 episode."""
+    if not 0 <= episode < pool:
+        raise ValueError(f"Q2 episode {episode} outside the test pool 0..{pool - 1}")
+    p = float(level.split("_")[1]) / 100.0
+    order = np.random.default_rng(select_seed).permutation(pool)
+    return bool(episode in set(order[: math.ceil(p * pool - 1e-9)].tolist()))
+
+
+def draw_corruption(level: str, seed: int, targets: list[int], scene: dict):
+    """The per-episode draws of a quality level, shared by corrupt() and OnlineGraph.
+
+    seed is the test episode index (sg.evaluate). Returns (q1, q2): q1 = the (du, dv) pixel offset for
+    Q1_s, else None; q2 = {target: wrong container} when Q2_p corrupts this episode (q2_fires: a fixed
+    share of the test episodes), else None. Each target gets its own fixed wrong container, chosen with
+    the episode's seed among the containers that do not hide it.
     """
     rng = np.random.default_rng(seed)
     if level.startswith("Q1_"):
         return rng.normal(0, float(level.split("_")[1]), 2), None
-    if level.startswith("Q2_") and rng.random() < float(level.split("_")[1]) / 100.0:
+    if level.startswith("Q2_") and q2_fires(level, seed):
         bins = [o["node"] for o in scene["objects"] if o["label_id"] == 0]
         return None, {
             c: int(rng.choice([b for b in bins if b != scene["cube_to_bin"][c]]))
@@ -1704,6 +1758,7 @@ class SGDataset:
             "actions": torch.from_numpy(acts.astype(np.float32)),
             "action_is_pad": torch.from_numpy(pad),
             "task": task,
+            "sample_key": f"{rep.task}/ep{rep.episode:04d}/k{k:04d}",  # identifies the sample (caches)
         }
         if self.iface in ("A3", "A3feat"):
             x, lab, ids, mask = node_tensor(
@@ -1732,11 +1787,70 @@ def collate(samples: list[dict]) -> dict:
 
 
 def split_graph_inputs(batch: dict, device) -> tuple[dict, tuple | None]:
+    batch.pop("sample_key", None)  # bookkeeping only (SiglipCache), not a model input
     g = None
     if "sg_x" in batch:
         g = tuple(batch.pop(k).to(device) for k in ["sg_x", "sg_label", "sg_id", "sg_mask"])
     pad = batch.pop("action_is_pad", None)
     return batch, (g, pad)
+
+
+@dataclass
+class Backend:
+    """What the shared train/evaluate loops need from a policy family (get_backend)."""
+
+    name: str
+    build: Any  # (device, stats) -> (policy, flow, pre, post, cfg, meta)
+    graph_prefix: Any  # class (flow, graph_tokenizer) inserting A3 tokens into the prefix
+    d_model: Any  # flow -> prefix token width
+    text_embed: Any  # (flow, cfg, device) -> (word -> [d_model]) for label_mode 'text'
+    make_optimizer: Any  # (params, steps, lr) -> (optimizer, scheduler | None, clip, EMA | None)
+    stats: Any  # (tasks, episodes_per_task) -> normalisation stats | None (None: the policy's own)
+
+
+def _smolvla_text_embed(flow, cfg, device):
+    import torch
+
+    tz = flow.vlm_with_expert.processor.tokenizer
+    emb = flow.vlm_with_expert.embed_language_tokens
+    return lambda w: emb(torch.tensor(tz(w)["input_ids"], device=device)).mean(0).detach()
+
+
+def _smolvla_optimizer(params, steps, lr=None):
+    import torch
+
+    # the v1 pilot's settings, unchanged
+    return torch.optim.AdamW(params, lr=1e-3 if lr is None else lr, weight_decay=1e-4), None, 10.0, None
+
+
+def get_backend(policy: str) -> Backend:
+    """'smolvla': this module's build_policy / GraphPrefix (the v1 pilot). 'pi05': pi05_policy.py."""
+    if policy == "smolvla":
+        return Backend(
+            "smolvla",
+            lambda device, stats=None: build_policy(device),
+            GraphPrefix,
+            lambda flow: flow.vlm_with_expert.config.text_config.hidden_size,
+            _smolvla_text_embed,
+            _smolvla_optimizer,
+            lambda tasks, episodes: None,
+        )
+    if policy == "pi05":
+        import pi05_policy as p
+
+        return Backend(
+            "pi05",
+            lambda device, stats=None: p.build_policy(device, stats=stats),
+            p.GraphPrefix,
+            p.d_model,
+            p.text_embed_fn,
+            p.make_optimizer,
+            p.quantile_stats,
+        )
+    raise ValueError(f"unknown policy {policy!r} (smolvla, pi05)")
+
+
+PERMANENCE = ",".join(PERMANENCE_TASKS)  # for --tasks permanence
 
 
 def train(
@@ -1747,41 +1861,47 @@ def train(
     out_dir: Path,
     episodes_per_task: int,
     batch_size: int = 32,
-    lr: float = 1e-3,
+    lr: float | None = None,
     label_mode: str = "table",
     log_every: int = 10,
     device: str = "cuda",
+    policy_name: str = "smolvla",
+    accum_steps: int = 1,
+    siglip_cache: bool = False,
 ) -> dict:
     """Fine-tune one arm. Training graphs are always Q0. Returns the loss history and timing.
 
+    policy_name selects the backend (get_backend); tasks may list several tasks (multi-task: one model,
+    the instruction tells the tasks apart). accum_steps > 1 accumulates gradients, so the effective batch
+    is batch_size * accum_steps. With an EMA (π0.5), the EMA weights are the ones saved.
     steps_per_s counts every step; steps_per_s_steady excludes step 0 (CUDA/cuDNN warm-up and the first
     DataLoader batch), which is the rate to extrapolate from.
     """
     import torch
 
+    be = get_backend(policy_name)
     set_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.reset_peak_memory_stats()
     episodes = []
     for task in tasks:
-        for p in sorted((CACHE_DIR / task).glob("ep*_replay.npz"))[:episodes_per_task]:
-            rep = load_replay(p)
-            gc = load_graph_cache(p.with_name(p.name.replace("_replay", "_graph")))
-            episodes.append((rep, gc["Q0"], gc.get("oracle_feats")))
-    policy, flow, pre, post, cfg, meta = build_policy(device)
+        paths = sorted((CACHE_DIR / task).glob("ep*_replay.npz"))[:episodes_per_task]
+        if len(paths) < episodes_per_task:
+            raise ValueError(f"cache for {task} has {len(paths)} episodes, {episodes_per_task} requested")
+        episodes += [load_training_episode(p, with_feats=interface == "A3feat") for p in paths]
+    stats = be.stats(tasks, episodes_per_task)
+    policy, flow, pre, post, cfg, meta = be.build(device, stats)
     tok = None
     if interface in ("A3", "A3feat"):
-        d_model = flow.vlm_with_expert.config.text_config.hidden_size
         in_dim = 3 + (episodes[0][2].shape[-1] if interface == "A3feat" else 0)
-        text_embed = None
-        if label_mode == "text":
-            tz = flow.vlm_with_expert.processor.tokenizer
-            emb = flow.vlm_with_expert.embed_language_tokens
-            text_embed = (
-                lambda w: emb(torch.tensor(tz(w)["input_ids"], device=device)).mean(0).detach()
-            )  # noqa: E731
-        tok = make_graph_tokenizer(in_dim, d_model, label_mode, text_embed).to(device)
-        gp = GraphPrefix(flow, tok)
+        text_embed = be.text_embed(flow, cfg, device) if label_mode == "text" else None
+        tok = make_graph_tokenizer(in_dim, be.d_model(flow), label_mode, text_embed).to(device)
+        gp = be.graph_prefix(flow, tok)
+    cache = None
+    if siglip_cache:
+        import pi05_policy
+
+        cache = pi05_policy.SiglipCache(flow, CACHE_DIR / "siglip")
     ds = SGDataset(episodes, interface, chunk=cfg.chunk_size)
     dl = torch.utils.data.DataLoader(
         ds,
@@ -1794,27 +1914,37 @@ def train(
     params = [p for p in policy.parameters() if p.requires_grad] + (
         [*tok.parameters()] if tok else []
     )
-    opt = torch.optim.AdamW(params, lr=lr, weight_decay=1e-4)
+    opt, sched, clip, ema = be.make_optimizer(params, steps, lr)
     hist, it, t0 = [], iter(dl), time.time()
     policy.train()
     for step in range(steps):
-        try:
-            batch = next(it)
-        except StopIteration:
-            it = iter(dl)
-            batch = next(it)
-        batch, (g, pad) = split_graph_inputs(batch, device)
-        batch = prep(pre, batch)
-        if pad is not None:
-            batch["action_is_pad"] = pad.to(device)
-        if tok is not None:
-            gp.current = g
-        loss, _ = policy.forward(batch)
         opt.zero_grad(set_to_none=True)
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(params, 10.0)
+        step_loss = 0.0
+        for _ in range(accum_steps):
+            try:
+                batch = next(it)
+            except StopIteration:
+                it = iter(dl)
+                batch = next(it)
+            keys = batch.pop("sample_key")
+            batch, (g, pad) = split_graph_inputs(batch, device)
+            batch = prep(pre, batch)
+            if pad is not None:
+                batch["action_is_pad"] = pad.to(device)
+            if tok is not None:
+                gp.current = g
+            if cache is not None:
+                cache.keys = [(k, "A1" if interface == "A1" else "raw") for k in keys]
+            loss, _ = policy.forward(batch)
+            (loss / accum_steps).backward()
+            step_loss += float(loss.item()) / accum_steps  # .item() synchronises: real step times
+        torch.nn.utils.clip_grad_norm_(params, clip)
         opt.step()
-        hist.append(float(loss.item()))  # .item() synchronises, so step times are real
+        if sched is not None:
+            sched.step()
+        if ema is not None:
+            ema.update()
+        hist.append(step_loss)
         if step == 0:
             t_first = time.time()
         if step % log_every == 0:
@@ -1823,18 +1953,30 @@ def train(
             )
     dt = time.time() - t0
     out_dir.mkdir(parents=True, exist_ok=True)
+    if ema is not None:
+        ema.swap()  # save the EMA weights (RoboMME evaluates EMA checkpoints)
     policy.save_pretrained(out_dir / "policy")
     pre.save_pretrained(out_dir / "policy")
     post.save_pretrained(out_dir / "policy")
     if tok is not None:
         torch.save(tok.state_dict(), out_dir / "graph_tokenizer.pt")
+    if ema is not None:
+        ema.swap()
+    if stats is not None:
+        (out_dir / "norm_stats.json").write_text(json.dumps(stats))
     info = dict(
+        policy=policy_name,
         interface=interface,
         tasks=tasks,
         seed=seed,
         steps=steps,
         batch_size=batch_size,
-        lr=lr,
+        accum_steps=accum_steps,
+        lr=opt.param_groups[0]["lr"],
+        ema=ema is not None,
+        chunk_size=cfg.chunk_size,
+        n_action_steps=cfg.n_action_steps,
+        siglip_cache=None if cache is None else dict(hits=cache.hits, misses=cache.misses),
         label_mode=label_mode,
         seconds=dt,
         steps_per_s=steps / dt,
@@ -1860,6 +2002,27 @@ def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
     centre = (p + z * z / (2 * n)) / den
     half = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / den
     return (centre - half, centre + half)
+
+
+def load_motion(task: str) -> dict[int, dict] | None:
+    """Test-episode motion labels (tools/memory_demand.py --split test): {episode: {moved, disp_px, ...}}.
+    moved = the target's container is not back where the target was hidden by t* (>= 10 px)."""
+    p = CACHE_DIR / f"{task}_test" / "motion.json"
+    return {int(k): v for k, v in json.loads(p.read_text()).items()} if p.exists() else None
+
+
+def success_by_split(summary: dict, motion: dict[int, dict] | None) -> dict[str, dict]:
+    """Success k/n, rate and 95% Wilson interval overall and, with motion labels, for moved vs
+    back-at-start test episodes."""
+    groups = {"all": summary["results"]}
+    if motion is not None:
+        groups["moved"] = [r for r in summary["results"] if motion[r["episode"]]["moved"]]
+        groups["back at start"] = [r for r in summary["results"] if not motion[r["episode"]]["moved"]]
+    out = {}
+    for name, rs in groups.items():
+        k, n = sum(r["success"] for r in rs), len(rs)
+        out[name] = dict(k=k, n=n, rate=k / n if n else float("nan"), wilson95=wilson(k, n))
+    return out
 
 
 def pilot_decision(k0: int, n0: int, k2: int, n2: int, ignored: bool | None) -> str:
@@ -2041,18 +2204,27 @@ def evaluate(
     strip_every: int = 50,
     save_strip: Path | None = None,
     episode_offset: int = 0,
+    policy_name: str | None = None,
 ) -> dict:
     """Closed-loop success on the test split.
 
     The graph is rebuilt from every frame the env returns at reset (the history video included) and
     updated after every step. Q0-Q2: simulator masks + bound rule, corrupted per level. Q3: the repo's
     perception pipeline + bound rule, run online. The success flag is the env's own status.
+    policy_name: backend (get_backend); by default the one recorded in the checkpoint's train_info.json.
+    The checkpoint's norm_stats.json (π0.5) is used for normalisation.
     """
     import torch
     from peft import set_peft_model_state_dict
     from safetensors.torch import load_file
 
-    policy, flow, pre, post, cfg, meta = build_policy(device)
+    info_path = ckpt / "train_info.json"
+    if policy_name is None:
+        policy_name = json.loads(info_path.read_text()).get("policy", "smolvla") if info_path.exists() else "smolvla"
+    be = get_backend(policy_name)
+    stats_file = ckpt / "norm_stats.json"
+    stats = json.loads(stats_file.read_text()) if stats_file.exists() else None
+    policy, flow, pre, post, cfg, meta = be.build(device, stats)
     set_peft_model_state_dict(
         policy, load_file(str(ckpt / "policy" / "adapter_model.safetensors"))
     )
@@ -2060,11 +2232,11 @@ def evaluate(
     if interface in ("A3", "A3feat"):
         state = torch.load(ckpt / "graph_tokenizer.pt", map_location=device)
         in_dim = state["mlp.0.weight"].shape[1]
-        tok = make_graph_tokenizer(in_dim, flow.vlm_with_expert.config.text_config.hidden_size)
+        tok = make_graph_tokenizer(in_dim, be.d_model(flow))
         tok = tok.to(device)
         tok.load_state_dict(state)
         tok.eval()
-        gp = GraphPrefix(flow, tok)
+        gp = be.graph_prefix(flow, tok)
     policy.eval()
     results, strip, t_ep = [], [], []
     for ep in range(episode_offset, episode_offset + episodes):
@@ -2246,6 +2418,7 @@ def evaluate(
         flow.embed_prefix = gp.orig
     k = sum(r["success"] for r in results)
     summary = dict(
+        policy=policy_name,
         interface=interface,
         task=task,
         quality=quality,
