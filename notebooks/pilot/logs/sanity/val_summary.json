@@ -1,0 +1,58 @@
+[
+ {
+  "arm": "A0",
+  "n_action_steps": 16,
+  "k": 0,
+  "n": 20,
+  "wilson95": [
+   -1.3877787807814457e-17,
+   0.16113012549493322
+  ],
+  "lifted": 2,
+  "first_lift_right": 1,
+  "timeouts": 19,
+  "seconds_per_episode": 45.57066159248352
+ },
+ {
+  "arm": "A2",
+  "n_action_steps": 16,
+  "k": 0,
+  "n": 20,
+  "wilson95": [
+   -1.3877787807814457e-17,
+   0.16113012549493322
+  ],
+  "lifted": 4,
+  "first_lift_right": 2,
+  "timeouts": 18,
+  "seconds_per_episode": 39.2686874628067
+ },
+ {
+  "arm": "A0",
+  "n_action_steps": 50,
+  "k": 1,
+  "n": 20,
+  "wilson95": [
+   0.008881219432873136,
+   0.23613589351256675
+  ],
+  "lifted": 5,
+  "first_lift_right": 3,
+  "timeouts": 17,
+  "seconds_per_episode": 26.651364314556123
+ },
+ {
+  "arm": "A2",
+  "n_action_steps": 50,
+  "k": 1,
+  "n": 20,
+  "wilson95": [
+   0.008881219432873136,
+   0.23613589351256675
+  ],
+  "lifted": 5,
+  "first_lift_right": 1,
+  "timeouts": 15,
+  "seconds_per_episode": 26.646920788288117
+ }
+]

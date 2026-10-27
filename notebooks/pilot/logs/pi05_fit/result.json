@@ -1,0 +1,31 @@
+{
+ "result": {
+  "batch": 32,
+  "gradient_checkpointing": true,
+  "steps": 100,
+  "s_per_step": 4.131150878103155,
+  "steps_per_s": 0.2420632965260171,
+  "samples_per_s": 7.746025488832547,
+  "peak_alloc_GB": 17.931460608,
+  "peak_reserved_GB": 19.824377856,
+  "trainable_params": 12783616,
+  "total_params": 4156188432,
+  "lora_modules": 76,
+  "chunk_size": 20,
+  "recipe_accumulation": 2,
+  "recipe_hours_one_4090": 183.60670569347357,
+  "recipe_days_one_4090": 7.650279403894732
+ },
+ "tried": [
+  {
+   "batch": 32,
+   "gradient_checkpointing": false,
+   "fits": false
+  },
+  {
+   "batch": 32,
+   "gradient_checkpointing": true,
+   "fits": true
+  }
+ ]
+}

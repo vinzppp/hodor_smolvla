@@ -1,0 +1,107 @@
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00, 774.46it/s]
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+WARNING:huggingface_hub.utils._http:Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading  HuggingFaceTB/SmolVLM2-500M-Video-Instruct weights ...
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/489 [00:00<?, ?it/s]Loading weights:  78%|███████▊  | 381/489 [00:00<00:00, 3805.85it/s]Loading weights: 100%|██████████| 489/489 [00:00<00:00, 4348.09it/s]
+Reducing the number of VLM layers to 16 ...
+n_action_steps = 16
+episode 0: ongoing in 1300 steps (46 s); lifted container None (true 2, graph-named n/a); targets [3]
+episode 1: ongoing in 1300 steps (41 s); lifted container None (true 1, graph-named n/a); targets [3, 4]
+episode 2: ongoing in 1300 steps (42 s); lifted container None (true 1, graph-named n/a); targets [4]
+episode 3: ongoing in 1300 steps (43 s); lifted container None (true 2, graph-named n/a); targets [4, 5]
+episode 4: ongoing in 1300 steps (40 s); lifted container None (true 1, graph-named n/a); targets [3]
+episode 5: ongoing in 1300 steps (43 s); lifted container None (true 0, graph-named n/a); targets [3]
+episode 6: ongoing in 1300 steps (79 s); lifted container None (true 2, graph-named n/a); targets [4]
+episode 7: ongoing in 1300 steps (55 s); lifted container None (true 0, graph-named n/a); targets [4, 5]
+episode 8: ongoing in 1300 steps (50 s); lifted container None (true 1, graph-named n/a); targets [3, 4]
+episode 9: ongoing in 1300 steps (47 s); lifted container None (true 1, graph-named n/a); targets [3, 4]
+episode 10: ongoing in 1300 steps (45 s); lifted container None (true 2, graph-named n/a); targets [4]
+episode 11: ongoing in 1300 steps (52 s); lifted container None (true 1, graph-named n/a); targets [4, 5]
+episode 12: ongoing in 1300 steps (45 s); lifted container None (true 2, graph-named n/a); targets [3]
+episode 13: ongoing in 1300 steps (50 s); lifted container 2 (true 2, graph-named n/a); targets [3]
+episode 14: ongoing in 1300 steps (44 s); lifted container None (true 1, graph-named n/a); targets [4]
+episode 15: ongoing in 1300 steps (57 s); lifted container None (true 2, graph-named n/a); targets [4, 5]
+episode 16: ongoing in 1300 steps (41 s); lifted container None (true 0, graph-named n/a); targets [3, 4]
+episode 17: ongoing in 1300 steps (42 s); lifted container None (true 1, graph-named n/a); targets [3, 4]
+episode 18: fail in 143 steps (6 s); lifted container 3 (true 1, graph-named n/a); targets [4]
+episode 19: ongoing in 1300 steps (43 s); lifted container None (true 1, graph-named n/a); targets [4, 5]
+VAL A0 n_action_steps=16: 0/20 [-0.000, 0.161]; lifted 2, first lift right 1; timeouts 19; 46 s/episode
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files:  50%|█████     | 2/4 [00:00<00:00,  8.09it/s]Fetching 4 files:  75%|███████▌  | 3/4 [00:00<00:00,  5.57it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00,  7.17it/s]
+Loading  HuggingFaceTB/SmolVLM2-500M-Video-Instruct weights ...
+Loading weights:   0%|          | 0/489 [00:00<?, ?it/s]Loading weights: 100%|██████████| 489/489 [00:00<00:00, 7168.17it/s]
+Reducing the number of VLM layers to 16 ...
+n_action_steps = 16
+episode 0: ongoing in 1300 steps (42 s); lifted container None (true 2, graph-named n/a); targets [3]
+episode 1: ongoing in 1300 steps (40 s); lifted container None (true 1, graph-named n/a); targets [3, 4]
+episode 2: ongoing in 1300 steps (42 s); lifted container None (true 1, graph-named n/a); targets [4]
+episode 3: ongoing in 1300 steps (43 s); lifted container None (true 2, graph-named n/a); targets [4, 5]
+episode 4: ongoing in 1300 steps (41 s); lifted container None (true 1, graph-named n/a); targets [3]
+episode 5: ongoing in 1300 steps (41 s); lifted container None (true 0, graph-named n/a); targets [3]
+episode 6: ongoing in 1300 steps (42 s); lifted container None (true 2, graph-named n/a); targets [4]
+episode 7: ongoing in 1300 steps (42 s); lifted container None (true 0, graph-named n/a); targets [4, 5]
+episode 8: ongoing in 1300 steps (41 s); lifted container None (true 1, graph-named n/a); targets [3, 4]
+episode 9: ongoing in 1300 steps (41 s); lifted container None (true 1, graph-named n/a); targets [3, 4]
+episode 10: fail in 758 steps (26 s); lifted container 1 (true 2, graph-named n/a); targets [4]
+episode 11: ongoing in 1300 steps (43 s); lifted container None (true 1, graph-named n/a); targets [4, 5]
+episode 12: ongoing in 1300 steps (42 s); lifted container 2 (true 2, graph-named n/a); targets [3]
+episode 13: ongoing in 1300 steps (41 s); lifted container 2 (true 2, graph-named n/a); targets [3]
+episode 14: ongoing in 1300 steps (42 s); lifted container None (true 1, graph-named n/a); targets [4]
+episode 15: ongoing in 1300 steps (42 s); lifted container None (true 2, graph-named n/a); targets [4, 5]
+episode 16: ongoing in 1300 steps (41 s); lifted container None (true 0, graph-named n/a); targets [3, 4]
+episode 17: fail in 286 steps (10 s); lifted container 2 (true 1, graph-named n/a); targets [3, 4]
+episode 18: ongoing in 1300 steps (42 s); lifted container None (true 1, graph-named n/a); targets [4]
+episode 19: ongoing in 1300 steps (43 s); lifted container None (true 1, graph-named n/a); targets [4, 5]
+VAL A2 n_action_steps=16: 0/20 [-0.000, 0.161]; lifted 4, first lift right 2; timeouts 18; 39 s/episode
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files:  50%|█████     | 2/4 [00:00<00:00,  3.13it/s]Fetching 4 files:  75%|███████▌  | 3/4 [00:00<00:00,  3.45it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00,  4.21it/s]
+Loading  HuggingFaceTB/SmolVLM2-500M-Video-Instruct weights ...
+Loading weights:   0%|          | 0/489 [00:00<?, ?it/s]Loading weights:  92%|█████████▏| 451/489 [00:00<00:00, 4503.55it/s]Loading weights: 100%|██████████| 489/489 [00:00<00:00, 4692.85it/s]
+Reducing the number of VLM layers to 16 ...
+n_action_steps = 50
+episode 0: ongoing in 1300 steps (29 s); lifted container None (true 2, graph-named n/a); targets [3]
+episode 1: ongoing in 1300 steps (30 s); lifted container None (true 1, graph-named n/a); targets [3, 4]
+episode 2: ongoing in 1300 steps (29 s); lifted container None (true 1, graph-named n/a); targets [4]
+episode 3: ongoing in 1300 steps (31 s); lifted container None (true 2, graph-named n/a); targets [4, 5]
+episode 4: ongoing in 1300 steps (29 s); lifted container None (true 1, graph-named n/a); targets [3]
+episode 5: ongoing in 1300 steps (28 s); lifted container None (true 0, graph-named n/a); targets [3]
+episode 6: ongoing in 1300 steps (31 s); lifted container None (true 2, graph-named n/a); targets [4]
+episode 7: ongoing in 1300 steps (30 s); lifted container None (true 0, graph-named n/a); targets [4, 5]
+episode 8: fail in 282 steps (8 s); lifted container 2 (true 1, graph-named n/a); targets [3, 4]
+episode 9: ongoing in 1300 steps (29 s); lifted container None (true 1, graph-named n/a); targets [3, 4]
+episode 10: ongoing in 1300 steps (31 s); lifted container None (true 2, graph-named n/a); targets [4]
+episode 11: ongoing in 1300 steps (31 s); lifted container 1 (true 1, graph-named n/a); targets [4, 5]
+episode 12: success in 268 steps (8 s); lifted container 2 (true 2, graph-named n/a); targets [3]
+episode 13: ongoing in 1300 steps (28 s); lifted container None (true 2, graph-named n/a); targets [3]
+episode 14: ongoing in 1300 steps (31 s); lifted container None (true 1, graph-named n/a); targets [4]
+episode 15: fail in 314 steps (9 s); lifted container 0 (true 2, graph-named n/a); targets [4, 5]
+episode 16: ongoing in 1300 steps (29 s); lifted container None (true 0, graph-named n/a); targets [3, 4]
+episode 17: ongoing in 1300 steps (30 s); lifted container 1 (true 1, graph-named n/a); targets [3, 4]
+episode 18: ongoing in 1300 steps (30 s); lifted container None (true 1, graph-named n/a); targets [4]
+episode 19: ongoing in 1300 steps (32 s); lifted container None (true 1, graph-named n/a); targets [4, 5]
+VAL A0 n_action_steps=50: 1/20 [0.009, 0.236]; lifted 5, first lift right 3; timeouts 17; 27 s/episode
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files:  75%|███████▌  | 3/4 [00:00<00:00, 10.43it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00, 12.15it/s]
+Loading  HuggingFaceTB/SmolVLM2-500M-Video-Instruct weights ...
+Loading weights:   0%|          | 0/489 [00:00<?, ?it/s]Loading weights: 100%|██████████| 489/489 [00:00<00:00, 5613.64it/s]
+Reducing the number of VLM layers to 16 ...
+n_action_steps = 50
+episode 0: ongoing in 1300 steps (31 s); lifted container None (true 2, graph-named n/a); targets [3]
+episode 1: ongoing in 1300 steps (30 s); lifted container None (true 1, graph-named n/a); targets [3, 4]
+episode 2: ongoing in 1300 steps (31 s); lifted container None (true 1, graph-named n/a); targets [4]
+episode 3: ongoing in 1300 steps (32 s); lifted container None (true 2, graph-named n/a); targets [4, 5]
+episode 4: fail in 418 steps (11 s); lifted container 2 (true 1, graph-named n/a); targets [3]
+episode 5: ongoing in 1300 steps (29 s); lifted container None (true 0, graph-named n/a); targets [3]
+episode 6: ongoing in 1300 steps (30 s); lifted container None (true 2, graph-named n/a); targets [4]
+episode 7: ongoing in 1300 steps (31 s); lifted container None (true 0, graph-named n/a); targets [4, 5]
+episode 8: ongoing in 1300 steps (29 s); lifted container None (true 1, graph-named n/a); targets [3, 4]
+episode 9: ongoing in 1300 steps (29 s); lifted container None (true 1, graph-named n/a); targets [3, 4]
+episode 10: ongoing in 1300 steps (32 s); lifted container None (true 2, graph-named n/a); targets [4]
+episode 11: fail in 887 steps (21 s); lifted container 2 (true 1, graph-named n/a); targets [4, 5]
+episode 12: success in 336 steps (9 s); lifted container 2 (true 2, graph-named n/a); targets [3]
+episode 13: ongoing in 1300 steps (29 s); lifted container None (true 2, graph-named n/a); targets [3]
+episode 14: fail in 507 steps (14 s); lifted container 2 (true 1, graph-named n/a); targets [4]
+episode 15: fail in 971 steps (23 s); lifted container 0 (true 2, graph-named n/a); targets [4, 5]
+episode 16: ongoing in 1300 steps (29 s); lifted container None (true 0, graph-named n/a); targets [3, 4]
+episode 17: ongoing in 1300 steps (30 s); lifted container None (true 1, graph-named n/a); targets [3, 4]
+episode 18: ongoing in 1300 steps (30 s); lifted container None (true 1, graph-named n/a); targets [4]
+episode 19: ongoing in 1300 steps (33 s); lifted container None (true 1, graph-named n/a); targets [4, 5]
+VAL A2 n_action_steps=50: 1/20 [0.009, 0.236]; lifted 5, first lift right 1; timeouts 15; 27 s/episode

@@ -1,0 +1,53 @@
+try batch 32, gradient checkpointing False
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files:  50%|█████     | 2/4 [00:00<00:00,  5.42it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00,  9.89it/s]
+WARNING:lerobot.configs.policies:Device 'mps' is not available. Switching to 'cuda'.
+The PI05 model is a direct port of the OpenPI implementation. 
+This implementation follows the original OpenPI structure for compatibility. 
+Original implementation: https://github.com/Physical-Intelligence/openpi
+Loading model from: lerobot/pi05_base
+✓ Loaded state dict from model.safetensors
+WARNING:root:Vision embedding key might need handling: paligemma_with_expert.paligemma.model.vision_tower.vision_model.embeddings.patch_embedding.bias
+WARNING:root:Vision embedding key might need handling: paligemma_with_expert.paligemma.model.vision_tower.vision_model.embeddings.patch_embedding.weight
+Remapped 812 state dict keys
+All keys loaded successfully!
+  out of memory: CUDA out of memory. Tried to allocate 262.00 MiB. GPU 0 has a total capacity of 23.52 GiB of which 187.75 MiB is free. Including non-PyTorch memory, this proces
+try batch 32, gradient checkpointing True
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files:  50%|█████     | 2/4 [00:00<00:00, 18.00it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00, 11.29it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00, 11.93it/s]
+WARNING:lerobot.configs.policies:Device 'mps' is not available. Switching to 'cuda'.
+The PI05 model is a direct port of the OpenPI implementation. 
+This implementation follows the original OpenPI structure for compatibility. 
+Original implementation: https://github.com/Physical-Intelligence/openpi
+Loading model from: lerobot/pi05_base
+✓ Loaded state dict from model.safetensors
+WARNING:root:Vision embedding key might need handling: paligemma_with_expert.paligemma.model.vision_tower.vision_model.embeddings.patch_embedding.bias
+WARNING:root:Vision embedding key might need handling: paligemma_with_expert.paligemma.model.vision_tower.vision_model.embeddings.patch_embedding.weight
+Remapped 812 state dict keys
+All keys loaded successfully!
+  step   0 loss 0.6882 4.25 s/step peak 17.8 GB
+  step  10 loss 0.6044 4.12 s/step peak 17.9 GB
+  step  20 loss 0.4514 4.14 s/step peak 17.9 GB
+  step  30 loss 0.5311 4.13 s/step peak 17.9 GB
+  step  40 loss 0.3868 4.13 s/step peak 17.9 GB
+  step  50 loss 0.3551 4.13 s/step peak 17.9 GB
+  step  60 loss 0.5084 4.13 s/step peak 17.9 GB
+  step  70 loss 0.4595 4.13 s/step peak 17.9 GB
+  step  80 loss 0.3198 4.13 s/step peak 17.9 GB
+  step  90 loss 0.4037 4.13 s/step peak 17.9 GB
+  step  99 loss 0.3007 4.13 s/step peak 17.9 GB
+{
+ "batch": 32,
+ "gradient_checkpointing": true,
+ "steps": 100,
+ "s_per_step": 4.131150878103155,
+ "steps_per_s": 0.2420632965260171,
+ "samples_per_s": 7.746025488832547,
+ "peak_alloc_GB": 17.931460608,
+ "peak_reserved_GB": 19.824377856,
+ "trainable_params": 12783616,
+ "total_params": 4156188432,
+ "lora_modules": 76,
+ "chunk_size": 20,
+ "recipe_accumulation": 2,
+ "recipe_hours_one_4090": 183.60670569347357,
+ "recipe_days_one_4090": 7.650279403894732
+}

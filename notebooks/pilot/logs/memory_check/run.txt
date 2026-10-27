@@ -1,0 +1,136 @@
+ep   0  targets 1  green cube  hide   32  t*  168  disp    0.0  frozen    2.4  bound    2.4  gap    0.0
+ep   1  targets 1  blue cube   hide   32  t*  168  disp   29.4  frozen   26.2  bound    2.2  gap   24.0
+ep   2  targets 1  green cube  hide   32  t*  114  disp   48.5  frozen   46.4  bound    3.0  gap   43.4
+ep   3  targets 2  blue cube   hide   32  t*  216  disp    0.0  frozen    2.8  bound    2.8  gap   -0.0
+ep   4  targets 1  green cube  hide   32  t*  168  disp    0.0  frozen    2.8  bound    2.8  gap    0.0
+ep   5  targets 2  green cube  hide   32  t*  114  disp   40.5  frozen   38.2  bound    1.8  gap   36.4
+ep   6  targets 1  green cube  hide   32  t*  168  disp   31.4  frozen   33.6  bound    3.5  gap   30.1
+ep   7  targets 2  blue cube   hide   32  t*  168  disp   35.3  frozen   35.6  bound    2.9  gap   32.6
+ep   8  targets 2  green cube  hide   32  t*  114  disp   37.2  frozen   35.9  bound    2.9  gap   33.0
+ep   9  targets 2  red cube    hide   32  t*  168  disp    0.0  frozen    2.4  bound    2.4  gap   -0.0
+ep  10  targets 1  blue cube   hide   32  t*  114  disp   41.7  frozen   39.6  bound    2.6  gap   37.0
+ep  11  targets 2  green cube  hide   32  t*  168  disp   41.0  frozen   38.4  bound    0.6  gap   37.8
+ep  12  targets 2  green cube  hide   32  t*  114  disp    0.0  frozen    2.7  bound    2.7  gap    0.0
+ep  13  targets 1  red cube    hide   32  t*  168  disp    0.0  frozen    1.5  bound    1.5  gap   -0.0
+ep  14  targets 1  blue cube   hide   32  t*  114  disp   47.7  frozen   47.1  bound    3.1  gap   44.0
+ep  15  targets 2  green cube  hide   32  t*  216  disp   26.9  frozen   24.5  bound    1.5  gap   23.0
+ep  16  targets 1  green cube  hide   32  t*  114  disp   51.7  frozen   52.5  bound    3.9  gap   48.6
+ep  17  targets 2  green cube  hide   32  t*  114  disp    0.0  frozen    3.1  bound    3.1  gap   -0.0
+ep  18  targets 1  green cube  hide   32  t*  114  disp   36.3  frozen   33.8  bound    1.5  gap   32.3
+ep  19  targets 2  blue cube   hide   32  t*  168  disp    0.0  frozen    2.6  bound    2.6  gap   -0.0
+ep  20  targets 2  red cube    hide   32  t*  168  disp    0.0  frozen    2.7  bound    2.7  gap   -0.0
+ep  21  targets 2  green cube  hide   32  t*  114  disp   50.7  frozen   47.9  bound    1.6  gap   46.2
+ep  22  targets 1  blue cube   hide   32  t*  168  disp   53.8  frozen   51.8  bound    1.9  gap   49.9
+ep  23  targets 2  blue cube   hide   32  t*  168  disp    0.0  frozen    2.5  bound    2.5  gap    0.0
+ep  24  targets 2  red cube    hide   32  t*  168  disp    0.0  frozen    2.7  bound    2.7  gap    0.0
+ep  25  targets 1  blue cube   hide   32  t*  114  disp   38.9  frozen   40.6  bound    3.7  gap   36.8
+ep  26  targets 1  blue cube   hide   32  t*  114  disp    0.0  frozen    2.9  bound    2.9  gap    0.0
+ep  27  targets 2  red cube    hide   32  t*  216  disp   36.7  frozen   34.0  bound    1.6  gap   32.4
+ep  28  targets 2  green cube  hide   32  t*  168  disp    0.0  frozen    3.1  bound    3.1  gap    0.0
+ep  29  targets 2  blue cube   hide   32  t*  168  disp    0.0  frozen    3.7  bound    3.7  gap    0.0
+ep  30  targets 1  blue cube   hide   32  t*  114  disp   43.5  frozen   43.7  bound    3.4  gap   40.3
+ep  31  targets 2  blue cube   hide   32  t*  168  disp   33.0  frozen   34.7  bound    3.5  gap   31.2
+ep  32  targets 1  green cube  hide   32  t*  168  disp    0.0  frozen    2.9  bound    2.9  gap    0.0
+ep  33  targets 1  blue cube   hide   32  t*  114  disp    0.0  frozen    2.3  bound    2.3  gap    0.0
+ep  34  targets 1  blue cube   hide   32  t*  168  disp   51.6  frozen   52.2  bound    3.8  gap   48.4
+ep  35  targets 2  blue cube   hide   32  t*  168  disp   75.9  frozen   74.5  bound    3.9  gap   70.6
+ep  36  targets 2  blue cube   hide   32  t*  168  disp    0.0  frozen    2.9  bound    2.9  gap    0.0
+ep  37  targets 1  red cube    hide   32  t*  114  disp   35.8  frozen   35.9  bound    2.9  gap   33.0
+ep  38  targets 1  green cube  hide   32  t*  168  disp   49.3  frozen   49.5  bound    3.6  gap   45.9
+ep  39  targets 2  blue cube   hide   32  t*  168  disp   46.2  frozen   46.4  bound    3.3  gap   43.1
+ep  40  targets 2  red cube    hide   32  t*  114  disp   47.3  frozen   48.7  bound    4.1  gap   44.6
+ep  41  targets 2  green cube  hide   32  t*  168  disp    0.0  frozen    2.6  bound    2.6  gap   -0.0
+ep  42  targets 1  blue cube   hide   32  t*  168  disp   27.3  frozen   29.8  bound    3.7  gap   26.1
+ep  43  targets 2  red cube    hide   32  t*  168  disp   44.1  frozen   43.1  bound    2.8  gap   40.3
+ep  44  targets 1  green cube  hide   32  t*  114  disp   41.9  frozen   39.4  bound    1.3  gap   38.1
+ep  45  targets 1  green cube  hide   32  t*  168  disp    0.0  frozen    2.8  bound    2.8  gap    0.0
+ep  46  targets 1  green cube  hide   32  t*  168  disp    0.0  frozen    1.6  bound    1.6  gap    0.0
+ep  47  targets 2  green cube  hide   32  t*  216  disp    0.0  frozen    3.2  bound    3.2  gap   -0.0
+ep  48  targets 1  green cube  hide   32  t*  114  disp   37.3  frozen   37.2  bound    3.1  gap   34.0
+ep  49  targets 1  red cube    hide   32  t*  114  disp   39.4  frozen   39.7  bound    3.6  gap   36.2
+ep  50  targets 1  red cube    hide   32  t*  114  disp   37.7  frozen   38.5  bound    3.1  gap   35.3
+ep  51  targets 2  red cube    hide   32  t*  216  disp    0.0  frozen    3.4  bound    3.4  gap    0.0
+ep  52  targets 1  red cube    hide   32  t*  168  disp   40.4  frozen   40.5  bound    3.2  gap   37.2
+ep  53  targets 2  blue cube   hide   32  t*  114  disp   46.2  frozen   45.7  bound    3.4  gap   42.3
+ep  54  targets 1  red cube    hide   32  t*  168  disp   36.2  frozen   38.0  bound    3.6  gap   34.3
+ep  55  targets 2  red cube    hide   32  t*  216  disp   35.0  frozen   34.9  bound    2.8  gap   32.0
+ep  56  targets 2  green cube  hide   32  t*  168  disp   74.9  frozen   76.5  bound    5.0  gap   71.5
+ep  57  targets 2  green cube  hide   32  t*  114  disp   30.4  frozen   31.1  bound    3.1  gap   28.0
+ep  58  targets 1  red cube    hide   32  t*  114  disp   45.7  frozen   46.1  bound    3.3  gap   42.9
+ep  59  targets 2  blue cube   hide   32  t*  216  disp   52.5  frozen   53.1  bound    3.5  gap   49.6
+ep  60  targets 1  red cube    hide   32  t*  114  disp   45.2  frozen   45.4  bound    3.4  gap   42.0
+ep  61  targets 1  red cube    hide   32  t*  114  disp   29.7  frozen   28.9  bound    3.4  gap   25.5
+ep  62  targets 1  red cube    hide   32  t*  168  disp   37.2  frozen   34.1  bound    1.5  gap   32.6
+ep  63  targets 2  blue cube   hide   32  t*  216  disp   40.6  frozen   42.6  bound    3.7  gap   39.0
+ep  64  targets 1  green cube  hide   32  t*  114  disp    0.0  frozen    2.9  bound    2.9  gap    0.0
+ep  65  targets 2  blue cube   hide   32  t*  168  disp    0.0  frozen    3.2  bound    3.2  gap   -0.0
+ep  66  targets 1  green cube  hide   32  t*  168  disp   24.6  frozen   26.4  bound    3.4  gap   22.9
+ep  67  targets 2  red cube    hide   32  t*  168  disp   21.1  frozen   17.7  bound    3.1  gap   14.7
+ep  68  targets 2  green cube  hide   32  t*  168  disp    0.0  frozen    2.7  bound    2.7  gap   -0.0
+ep  69  targets 2  blue cube   hide   32  t*  114  disp   37.6  frozen   39.5  bound    3.6  gap   35.9
+ep  70  targets 1  green cube  hide   32  t*  168  disp   35.2  frozen   35.2  bound    3.2  gap   32.0
+ep  71  targets 2  green cube  hide   32  t*  216  disp   48.9  frozen   49.9  bound    3.7  gap   46.2
+ep  72  targets 2  red cube    hide   32  t*  168  disp   48.6  frozen   49.9  bound    3.9  gap   46.0
+ep  73  targets 1  blue cube   hide   32  t*  114  disp   36.9  frozen   36.6  bound    3.1  gap   33.6
+ep  74  targets 1  red cube    hide   32  t*  168  disp   48.0  frozen   45.6  bound    1.1  gap   44.4
+ep  75  targets 2  green cube  hide   32  t*  168  disp   37.4  frozen   37.3  bound    3.0  gap   34.3
+ep  76  targets 2  green cube  hide   32  t*  114  disp   35.6  frozen   37.3  bound    3.5  gap   33.8
+ep  77  targets 2  red cube    hide   32  t*  168  disp    0.0  frozen    2.7  bound    2.7  gap    0.0
+ep  78  targets 1  blue cube   hide   32  t*  114  disp    0.0  frozen    3.0  bound    3.0  gap    0.0
+ep  79  targets 2  blue cube   hide   32  t*  216  disp    0.0  frozen    3.0  bound    3.0  gap    0.0
+ep  80  targets 2  blue cube   hide   32  t*  168  disp    0.1  frozen    2.5  bound    2.6  gap   -0.1
+ep  81  targets 2  blue cube   hide   32  t*  114  disp   60.4  frozen   57.3  bound    1.4  gap   56.0
+ep  82  targets 1  blue cube   hide   32  t*  114  disp    0.0  frozen    2.1  bound    2.1  gap    0.0
+ep  83  targets 2  red cube    hide   32  t*  216  disp   29.3  frozen   26.3  bound    1.8  gap   24.5
+ep  84  targets 1  red cube    hide   32  t*  114  disp    0.0  frozen    2.7  bound    2.7  gap   -0.0
+ep  85  targets 2  green cube  hide   32  t*  168  disp   41.0  frozen   40.7  bound    2.9  gap   37.8
+ep  86  targets 1  red cube    hide   32  t*  168  disp   51.3  frozen   50.6  bound    3.1  gap   47.4
+ep  87  targets 2  red cube    hide   32  t*  216  disp    0.0  frozen    2.7  bound    2.7  gap    0.0
+ep  88  targets 2  green cube  hide   32  t*  168  disp    0.0  frozen    1.7  bound    1.7  gap   -0.0
+ep  89  targets 2  green cube  hide   32  t*  168  disp    0.0  frozen    3.1  bound    3.1  gap   -0.0
+ep  90  targets 1  blue cube   hide   32  t*  114  disp   44.8  frozen   44.3  bound    2.8  gap   41.5
+ep  91  targets 2  green cube  hide   32  t*  168  disp   27.7  frozen   29.2  bound    2.8  gap   26.4
+ep  92  targets 2  blue cube   hide   32  t*  114  disp    0.0  frozen    2.6  bound    2.5  gap    0.0
+ep  93  targets 1  red cube    hide   32  t*  168  disp    0.0  frozen    2.6  bound    2.6  gap   -0.0
+ep  94  targets 1  green cube  hide   32  t*  114  disp   45.8  frozen   45.6  bound    3.0  gap   42.6
+ep  95  targets 2  red cube    hide   32  t*  168  disp   73.4  frozen   72.1  bound    3.6  gap   68.6
+ep  96  targets 1  green cube  hide   32  t*  114  disp   45.1  frozen   43.7  bound    2.5  gap   41.3
+ep  97  targets 2  red cube    hide   32  t*  168  disp    0.0  frozen    3.0  bound    3.0  gap    0.0
+ep  98  targets 1  green cube  hide   32  t*  168  disp   49.1  frozen   45.9  bound    2.3  gap   43.6
+ep  99  targets 2  blue cube   hide   32  t*  168  disp    0.1  frozen    2.4  bound    2.3  gap    0.1
+
+all: 100 episodes
+  gap > 10 px (frozen - bound at t*): 62 of 100
+  frozen error > 10 px at t*:         62 of 100
+  disp_px    n=100  median   35.1  quartiles [   0.0,   44.3]  max   75.9
+  frozen_px  n=100  median   34.1  quartiles [   2.9,   43.7]  max   76.5
+  bound_px   n=100  median    2.9  quartiles [   2.6,    3.4]  max    5.0
+  gap_px     n=100  median   32.0  quartiles [   0.0,   40.6]  max   71.5
+
+one target: 46 episodes
+  gap > 10 px (frozen - bound at t*): 33 of 46
+  frozen error > 10 px at t*:         33 of 46
+  disp_px    n=46  median   37.0  quartiles [   0.0,   45.2]  max   53.8
+  frozen_px  n=46  median   36.9  quartiles [   2.9,   45.1]  max   52.5
+  bound_px   n=46  median    3.0  quartiles [   2.4,    3.3]  max    3.9
+  gap_px     n=46  median   33.8  quartiles [   0.0,   41.9]  max   49.9
+
+two targets: 54 episodes
+  gap > 10 px (frozen - bound at t*): 29 of 54
+  frozen error > 10 px at t*:         29 of 54
+  disp_px    n=54  median   27.3  quartiles [   0.0,   40.9]  max   75.9
+  frozen_px  n=54  median   25.4  quartiles [   2.7,   40.4]  max   76.5
+  bound_px   n=54  median    2.9  quartiles [   2.6,    3.3]  max    5.0
+  gap_px     n=54  median   23.7  quartiles [   0.0,   37.8]  max   71.5
+
+episodes where the target is not hidden at t*: none
+
+Q1/Q2 draws for test episodes 0..49 (seed = episode index, as in sg.evaluate)
+  Q1_20: |offset| n=50  median   24.2  quartiles [  15.8,   29.4]  max   71.6 px; expected median 23.5, mean 25.1; observed mean 25.2; episodes under 5 px: 1
+  Q1_50: |offset| n=50  median   60.6  quartiles [  39.5,   73.5]  max  179.0 px; expected median 58.9, mean 62.7; observed mean 63.0; episodes under 5 px: 0
+  Q1_50 offset == 2.5 x Q1_20 offset for the same episode: True
+  Q2_25: fires in 9 of 50 episodes; expected 12.5 (+-2 sd: 6-19); episodes [3, 11, 25, 29, 30, 32, 34, 36, 44]
+  Q2_50: fires in 23 of 50 episodes; expected 25.0 (+-2 sd: 18-32); episodes [2, 3, 8, 11, 12, 18, 19, 20, 22, 24, 25, 26, 29, 30, 32, 33, 34, 35, 36, 38, 44, 48, 49]
+  Q2_25 firing episodes are a subset of Q2_50's: True
+
+per-episode table: /workspace/logs/memory_check/VideoUnmaskSwap_memory_demand.csv

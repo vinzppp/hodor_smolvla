@@ -1,0 +1,42 @@
+[
+ {
+  "episode": 0,
+  "status": "success",
+  "steps": 152,
+  "recorded_actions": 158,
+  "max_abs_diff_after_post": 1.1920928955078125e-07,
+  "dtype": "float32"
+ },
+ {
+  "episode": 1,
+  "status": "success",
+  "steps": 152,
+  "recorded_actions": 158,
+  "max_abs_diff_after_post": 1.1920928955078125e-07,
+  "dtype": "float32"
+ },
+ {
+  "episode": 2,
+  "status": "success",
+  "steps": 152,
+  "recorded_actions": 158,
+  "max_abs_diff_after_post": 1.1920928955078125e-07,
+  "dtype": "float32"
+ },
+ {
+  "episode": 3,
+  "status": "success",
+  "steps": 365,
+  "recorded_actions": 370,
+  "max_abs_diff_after_post": 1.1920928955078125e-07,
+  "dtype": "float32"
+ },
+ {
+  "episode": 4,
+  "status": "success",
+  "steps": 191,
+  "recorded_actions": 197,
+  "max_abs_diff_after_post": 1.1920928955078125e-07,
+  "dtype": "float32"
+ }
+]

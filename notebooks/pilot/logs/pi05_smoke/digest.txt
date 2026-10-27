@@ -1,0 +1,270 @@
+=== cell 86 (exec 42) # Step 8.1
+[stdout] perception worker stopped: True
+[stdout] π0.5 defaults (installed source):
+   /workspace/envs/sg-main/lib/python3.12/site-packages/lerobot/policies/pi05/configuration_pi05.py:38  chunk_size: int = 50  # Number of action steps to predict, in openpi called "action_horizon"
+   /workspace/envs/sg-main/lib/python3.12/site-packages/lerobot/policies/pi05/configuration_pi05.py:39  n_action_steps: int = 50  # Number of action steps to execute
+   /workspace/envs/sg-main/lib/python3.12/site-packages/lerobot/policies/pi05/configuration_pi05.py:89  tokenizer_max_length: int = 200  # see openpi `__post_init__`
+   /workspace/envs/sg-main/lib/python3.12/site-packages/lerobot/policies/pi05/configuration_pi05.py:35  dtype: torch.dtype | None = torch.float32
+   /workspace/envs/sg-main/lib/python3.12/site-packages/lerobot/policies/pi05/configuration_pi05.py:107  freeze_vision_encoder: bool = False  # Freeze only the vision encoder
+   /workspace/envs/sg-main/lib/python3.12/site-packages/lerobot/policies/pi05/configuration_pi05.py:95  "STATE": NormalizationMode.QUANTILES,  # Pi0.5 uses quantiles for state
+   /workspace/envs/sg-main/lib/python3.12/site-packages/lerobot/policies/pi05/configuration_pi05.py:96  "ACTION": NormalizationMode.QUANTILES,  # Pi0.5 uses quantiles for action
+   prompt with state:    /workspace/envs/sg-main/lib/python3.12/site-packages/lerobot/policies/pi05/processor_pi05.py:88  full_prompt = f"Task: {cleaned_text}, State: {state_str};\nAction: "
+   prompt without state: /workspace/envs/sg-main/lib/python3.12/site-packages/lerobot/policies/pi05/processor_pi05.py:85  full_prompt = f"Task: {cleaned_text};\nAction: "
+[stderr] Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]
+[stderr] Fetching 4 files:  75%|███████▌  | 3/4 [00:00<00:00, 17.08it/s]
+[stderr] Fetching 4 files: 100%|██████████| 4/4 [00:01<00:00,  3.97it/s]
+[stderr] 
+[stdout] The PI05 model is a direct port of the OpenPI implementation. 
+This implementation follows the original OpenPI structure for compatibility. 
+Original implementation: https://github.com/Physical-Intelligence/openpi
+[stdout] Loading model from: lerobot/pi05_base
+[stdout] ✓ Loaded state dict from model.safetensors
+Remapped 812 state dict keys
+[stdout] All keys loaded successfully!
+[stdout]    prefix builder:       /workspace/envs/sg-main/lib/python3.12/site-packages/lerobot/policies/pi05/modeling_pi05.py:779  def embed_prefix(
+   training loss:        /workspace/envs/sg-main/lib/python3.12/site-packages/lerobot/policies/pi05/modeling_pi05.py:1600  losses = losses[:, :, :original_action_dim]
+
+values used here (pi05_policy.build_policy):
+  chunk_size = 20
+  n_action_steps = 16
+  tokenizer_max_length = 256
+  dtype = torch.bfloat16
+  freeze_vision_encoder = True
+  gradient_checkpointing = True
+  image_resolution = (224, 224)
+  normalization_mapping = {'VISUAL': 'NormalizationMode.IDENTITY', 'STATE': 'NormalizationMode.QUANTILES', 'ACTION': 'NormalizationMode.QUANTILES'}
+  state in the prompt: no (Pi05PrepareStateTokenizerProcessorStep(include_state_in_prompt=False))
+input features: ['observation.images.camera1', 'observation.images.camera2', 'observation.state'] | output: ['action']
+prefix token width d = 2048 | trainable LoRA parameters: 12,783,616
+=== cell 87 (exec 43) # Step 8.1 (prefix of one real sample)
+[stdout] prefix embeddings (1, 768, 2048) = [batch, tokens, d]
+  image tokens: 512 (2 cameras x 256)
+  prompt tokens: 256 slots, 22 used
+  prompt as the model reads it: '<bos>Task: watch the video carefully, then pick up the container hiding the green cube;\nAction: '
+[PASS] no state in the prompt: Task: ...;\nAction:
+=== cell 89 (exec 44) # Step 8.2
+def draw_markers(image: np.ndarray, nodes: list[dict], size: int = 6) -> np.ndarray:
+    """A1: labelled markers at (u, v). Visible: filled circle; hidden: ring with an 'h'."""
+    import cv2
+
+    img = image.copy()
+    for nd in nodes:
+        if nd["u"] is None:
+            continue
+        c = (i
+<image> /workspace/logs/pi05_smoke/img/img_c89.png
+[stdout] chosen marker size: 6 = ? (confirm from the figure: smallest size whose ring and label stay distinct)
+=== cell 91 (exec 45) # Step 8.3
+def serialize(nodes: list[dict], instruction: str) -> str:
+    """A2: instruction + fixed-template object list (integer pixels).
+
+    Positions use RoboMME's grounded-subgoal convention, 'at <row, col>' = <v, u> (the dataset's
+    "pick up the container at <100, 139> ..."; env_record_wrapper/Demonst
+[stdout] worst case prompt tokens: 133 | tokenizer_max_length: 256
+Task: watch the video carefully, then pick up the container hiding the blue cube. Objects: [0 container, visible, at <91, 109>]; [1 container, visible, at <106, 117>]; [2 container, visible, at <142, 145>]; [3 blue cube, hidden, at <108, 117>]; [4 green cube, hidden, at <94, 110>]; [5 red cube, hidden, at <142, 143>];
+Action: 
+decoded back (end): ' at <108, 117>]; [4 green cube, hidden, at <94, 110>]; [5 red cube, hidden, at <142, 143>];\nAction: '
+[PASS] no truncation at tokenizer_max_length: (133, 256)
+=== cell 93 (exec 46) # Step 8.4
+def make_graph_tokenizer(
+    in_dim: int,
+    d_model: int,
+    label_mode: str = "table",
+    text_embed=None,
+    label_words=("container", "cube"),
+    max_ids: int = 16,
+    hidden: int = 512,
+):
+    import torch
+    from torch import nn
+
+    class GraphTokenizer(nn.Module):
+        """[B, N, i
+class GraphPrefix:
+    """A3 for π0.5: graph tokens appended to the prefix, [image tokens | language tokens | GRAPH].
+
+    Wraps PI05Pytorch.embed_prefix (lerobot/policies/pi05/modeling_pi05.py). Graph tokens get attention
+    flag 0 (bidirectional within the prefix, like the image and language toke
+[stdout] prefix without graph (1, 768, 2048) | with graph (1, 776, 2048) | graph tokens 6 (+ padding 2 masked)
+pad mask of the appended tokens: [1, 1, 1, 1, 1, 1, 0, 0] | attention flags: [0, 0, 0, 0, 0, 0, 0, 0]
+[stdout] action shape (1, 8) | actions left in the queue: 15
+[PASS] A3 forward runs, action shape unchanged: (1, 8)
+=== cell 95 (exec 47) # Step 8.4c
+[stdout] text label 'cube': vector (2048,), norm 268.00
+text label 'container': vector (2048,), norm 227.00
+pilot uses label_mode='table'
+=== cell 97 (exec 48) # Step 8.5
+[stdout] A0  trainable parameters 12,783,616  (+0 vs A0)
+A1  trainable parameters 12,783,616  (+0 vs A0)
+A2  trainable parameters 12,783,616  (+0 vs A0)
+A3  trainable parameters 13,877,249  (+1,093,633 vs A0)
+=== cell 101 (exec 49) # Step 9.1
+def quantile_stats(tasks: list[str], episodes_per_task: int, recompute: bool = False) -> dict:
+    """{"observation.state": {...}, "action": {...}} with q01, q99, mean, std, min, max.
+
+    Actions: every recorded action of the training episodes; state: the state at every policy frame
+    (7 joints +
+[stdout] action
+  q01  [-0.043 -0.    -0.023 -1.962 -0.029  1.571  0.597 -1.   ]
+  q99  [ 0.037  0.643  0.038 -1.571  0.017  2.542  0.785  1.   ]
+  mean [-0.004  0.368  0.005 -1.848 -0.003  2.215  0.648  0.388]
+  std  [0.033 0.207 0.025 0.12  0.015 0.307 0.063 0.922]
+observation.state
+  q01  [-0.043 -0.001 -0.023 -1.96  -0.029  1.571  0.597  0.   ]
+  q99  [ 0.037  0.643  0.037 -1.571  0.017  2.542  0.785  0.04 ]
+  mean [-0.004  0.361  0.005 -1.842 -0.003  2.202  0.651  0.03 ]
+  std  [0.032 0.212 0.024 0.124 0.015 0.316 0.065 0.015]
+stats file: /workspace/sg/notebooks/pilot/cache/norm_stats/pi05_VideoUnmaskSwap_2.json
+[PASS] q01/q99 for action and state: ['action', 'observation.state']
+=== cell 103 (exec 50) # Step 9.2
+[stdout] image          (4, 3, 256, 256)
+wrist_image    (4, 3, 256, 256)
+state          (4, 8)
+actions        (4, 20, 8)
+action_is_pad  (4, 20)
+task           list of 4 strings
+sample_key     list of 4 strings
+sg_x           (4, 8, 3)
+sg_label       (4, 8)
+sg_id          (4, 8)
+sg_mask        (4, 8)
+2 episodes, 304 samples
+=== cell 105 (exec 51) # Step 9.3
+def make_optimizer(params, steps: int, lr: float | None = None, warmup_steps: int | None = None):
+    """(optimizer, scheduler, clip norm, EMA) for the RoboMME recipe. Warm-up: 10k steps, but at most
+    an eighth of the run (the paper's 10k of 80k), so shorter runs keep the same proportion."""
+    
+[stderr] Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]
+[stderr] Fetching 4 files:  75%|███████▌  | 3/4 [00:00<00:00,  8.70it/s]
+[stderr] Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00,  7.88it/s]
+[stderr] Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00,  8.03it/s]
+[stderr] 
+[stdout] The PI05 model is a direct port of the OpenPI implementation. 
+This implementation follows the original OpenPI structure for compatibility. 
+Original implementation: https://github.com/Physical-Intelligence/openpi
+[stdout] Loading model from: lerobot/pi05_base
+✓ Loaded state dict from model.safetensors
+[stdout] Remapped 812 state dict keys
+[stdout] All keys loaded successfully!
+[stdout] step      0  loss 0.5844  0.78 it/s
+[stdout] step      5  loss 0.5171  0.88 it/s
+[stderr] Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]
+[stderr] Fetching 4 files:  50%|█████     | 2/4 [00:00<00:00,  2.44it/s]
+[stderr] Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00,  4.69it/s]
+[stderr] Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00,  4.11it/s]
+[stderr] 
+[stdout] The PI05 model is a direct port of the OpenPI implementation. 
+This implementation follows the original OpenPI structure for compatibility. 
+Original implementation: https://github.com/Physical-Intelligence/openpi
+[stdout] Loading model from: lerobot/pi05_base
+✓ Loaded state dict from model.safetensors
+[stdout] Remapped 812 state dict keys
+[stdout] All keys loaded successfully!
+[stdout] step      0  loss 0.5982  0.87 it/s
+[stdout] step      5  loss 0.5236  0.90 it/s
+[stderr] Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]
+[stderr] Fetching 4 files:  50%|█████     | 2/4 [00:00<00:00,  7.54it/s]
+[stderr] Fetching 4 files:  75%|███████▌  | 3/4 [00:00<00:00,  6.90it/s]
+[stderr] Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00,  7.11it/s]
+[stderr] Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00,  7.11it/s]
+[stderr] 
+[stdout] The PI05 model is a direct port of the OpenPI implementation. 
+This implementation follows the original OpenPI structure for compatibility. 
+Original implementation: https://github.com/Physical-Intelligence/openpi
+[stdout] Loading model from: lerobot/pi05_base
+✓ Loaded state dict from model.safetensors
+[stdout] Remapped 812 state dict keys
+[stdout] All keys loaded successfully!
+[stdout] step      0  loss 0.7620  0.87 it/s
+[stdout] step      5  loss 0.5671  0.90 it/s
+[stderr] Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]
+[stderr] Fetching 4 files:  50%|█████     | 2/4 [00:00<00:00,  2.33it/s]
+[stderr] Fetching 4 files:  75%|███████▌  | 3/4 [00:01<00:00,  3.16it/s]
+[stderr] Fetching 4 files: 100%|██████████| 4/4 [00:01<00:00,  3.93it/s]
+[stderr] 
+[stdout] The PI05 model is a direct port of the OpenPI implementation. 
+This implementation follows the original OpenPI structure for compatibility. 
+Original implementation: https://github.com/Physical-Intelligence/openpi
+[stdout] Loading model from: lerobot/pi05_base
+✓ Loaded state dict from model.safetensors
+[stdout] Remapped 812 state dict keys
+[stdout] All keys loaded successfully!
+[stdout] step      0  loss 0.4624  0.85 it/s
+[stdout] step      5  loss 0.5132  0.88 it/s
+<image> /workspace/logs/pi05_smoke/img/img_c105.png
+[stdout] [PASS] loss finite, checkpoint (EMA) reloads, stats saved: 152 adapter tensors
+=== cell 107 (exec 52) # Step 9.4: 25 steps at batch 32 (gradient checkpointing on), A0 and A2
+[stderr] Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]
+[stderr] Fetching 4 files:  50%|█████     | 2/4 [00:00<00:00,  2.73it/s]
+[stderr] Fetching 4 files:  75%|███████▌  | 3/4 [00:00<00:00,  3.79it/s]
+[stderr] Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00,  4.53it/s]
+[stderr] 
+[stdout] The PI05 model is a direct port of the OpenPI implementation. 
+This implementation follows the original OpenPI structure for compatibility. 
+Original implementation: https://github.com/Physical-Intelligence/openpi
+[stdout] Loading model from: lerobot/pi05_base
+✓ Loaded state dict from model.safetensors
+[stdout] Remapped 812 state dict keys
+[stdout] All keys loaded successfully!
+[stdout] step      0  loss 0.5716  0.22 it/s
+[stderr] Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]
+[stderr] Fetching 4 files:  50%|█████     | 2/4 [00:00<00:00,  7.22it/s]
+[stderr] Fetching 4 files:  75%|███████▌  | 3/4 [00:00<00:00,  6.51it/s]
+[stderr] Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00,  6.67it/s]
+[stderr] Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00,  6.70it/s]
+[stderr] 
+[stdout] The PI05 model is a direct port of the OpenPI implementation. 
+This implementation follows the original OpenPI structure for compatibility. 
+Original implementation: https://github.com/Physical-Intelligence/openpi
+[stdout] Loading model from: lerobot/pi05_base
+✓ Loaded state dict from model.safetensors
+[stdout] Remapped 812 state dict keys
+[stdout] All keys loaded successfully!
+[stdout] step      0  loss 0.7157  0.22 it/s
+[stdout] A0: 0.231 steps/s after step 0, peak GPU memory 18.9 GB at batch 32
+A2: 0.230 steps/s after step 0, peak GPU memory 18.9 GB at batch 32
+RoboMME recipe (80000 steps, batch 32 x 2): ~193 h per arm on one GPU of this type
+=== cell 109 (exec 53) # Step 9.5: pilot training (outside the notebook, one GPU per arm)
+[stdout] = ? (run in pilot mode)
+=== cell 111 (exec 54) # Step 10.1
+[stdout] {'policy': 'pi05', 'chunk_size': 20, 'n_action_steps': 16, 'ema': True, 'lr': 5e-05, 'accum_steps': 1}
+[stdout] max_steps = 1300 | frames returned at reset (history video included): 115
+[PASS] executes 16 of 20: (20, 16)
+=== cell 112 (exec 55) # Step 10.2: smoke evaluation, A2 on 2 episodes (rollout strip) and A3 on 1 (graph tokens online)
+[stderr] Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]
+[stderr] Fetching 4 files:  50%|█████     | 2/4 [00:00<00:00,  2.88it/s]
+[stderr] Fetching 4 files:  75%|███████▌  | 3/4 [00:00<00:00,  3.59it/s]
+[stderr] Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00,  4.11it/s]
+[stderr] 
+[stdout] The PI05 model is a direct port of the OpenPI implementation. 
+This implementation follows the original OpenPI structure for compatibility. 
+Original implementation: https://github.com/Physical-Intelligence/openpi
+[stdout] Loading model from: lerobot/pi05_base
+✓ Loaded state dict from model.safetensors
+[stdout] Remapped 812 state dict keys
+[stdout] All keys loaded successfully!
+[stdout] episode 0: ongoing in 1300 steps (42 s); lifted container None (true 1, graph-named n/a); targets [3, 4]
+[stdout] episode 1: ongoing in 1300 steps (43 s); lifted container None (true 2, graph-named n/a); targets [3]
+[stderr] Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]
+[stderr] Fetching 4 files:  50%|█████     | 2/4 [00:00<00:00, 12.67it/s]
+[stderr] Fetching 4 files: 100%|██████████| 4/4 [00:01<00:00,  3.22it/s]
+[stderr] Fetching 4 files: 100%|██████████| 4/4 [00:01<00:00,  3.62it/s]
+[stderr] 
+[stdout] The PI05 model is a direct port of the OpenPI implementation. 
+This implementation follows the original OpenPI structure for compatibility. 
+Original implementation: https://github.com/Physical-Intelligence/openpi
+[stdout] Loading model from: lerobot/pi05_base
+✓ Loaded state dict from model.safetensors
+[stdout] Remapped 812 state dict keys
+[stdout] All keys loaded successfully!
+[stdout] episode 0: ongoing in 1300 steps (42 s); lifted container None (true 1, graph-named n/a); targets [3, 4]
+<image> /workspace/logs/pi05_smoke/img/img_c112.png
+[stdout] A2 [(0, 'ongoing', 1300), (1, 'ongoing', 1300)] 42 s/episode
+A3 [(0, 'ongoing', 1300)] 42 s/episode
+[PASS] evaluation runs for A2 and A3: 3 episodes
+<image> /workspace/logs/pi05_smoke/img/img_c112.png
+=== cell 113 (exec 56) # Step 10.3: pilot evaluation, every arm on 50 test episodes of each permanence task at Q0
+[stdout] = ? (run in pilot mode)
+=== cell 115 (exec 57) # Step 10.4: grid size and cost (not run)
+[stdout] π0.5 grid: 4 interfaces x 3 seeds = 12 training runs of ~193 h = ~2316 GPU h at the speed measured in 9.4
+launch per seed: ./run_arms_parallel.sh --policy pi05 --interfaces A0,A1,A2,A3 --tasks permanence --steps 80000 --batch 32 --accum 2 --seed <s> --label pi05

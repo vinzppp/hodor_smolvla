@@ -18,13 +18,14 @@ Define `RUN_MODE` in the first code cell. Every heavy cell reads it.
 - `"pilot"`: VideoUnmaskSwap, all 100 training demos, the step count chosen in Step 9.6, 50 test episodes. Run by the user later.
 
 ## Environment
+- How to set up the pod, check Vulkan, upload the code and hand off to a Claude Code session there: `POD_RUNBOOK.md`.
 - Linux with an NVIDIA GPU and working Vulkan. ManiSkill renders with Vulkan, and `HODORProcessor.__init__` hard-codes `torch.device("cuda:0")`. The notebook will not run on macOS or CPU-only machines.
 - If the build machine has no GPU or no Vulkan, stop after Step 1 and report it as a Gap. Never fake an output.
 - Install LeRobot with the RoboMME and SmolVLA extras, following https://huggingface.co/docs/lerobot/robomme. Note the numpy/gymnasium pin conflict described there.
 - Install this repo's perception dependencies as in `README.md` (GroundingDINO, segment-anything, Cutie from source; SAM ViT-H checkpoint in `pretrained/`).
 
 ## Materials (read all before writing code)
-1. **This repo.** Read in full: `post_process_scene_cutie.py`, `droid_hodor_test_cutie.py`, `dinov2_encoder.py`, `vit.py`, `llm_entities.py`, `rerun_logger.py`, `configs/base.yaml`, `configs/giraffe.yaml`, `README.md`, `SECTION_3_1_NOTES.md`.
+1. **This repo.** Read in full: `post_process_scene_cutie.py`, `archive/droid-section3.1/droid_hodor_test_cutie.py`, `dinov2_encoder.py`, `vit.py`, `llm_entities.py`, `rerun_logger.py`, `configs/base.yaml`, `archive/droid-section3.1/configs/giraffe.yaml`, `README.md`, `SECTION_3_1_NOTES.md`.
    - Reuse: `HODORProcessor.process_frame(hand_bgr_rotated, frame_num, episode_num, depth, hand_rgb_unrotated, intrinsics, extrinsics)`.
    - It returns `FrameOutput.representation`, shape `[N+1, 768]` (slot 0 = global CLS feature, slots 1..N = object features), and `FrameOutput.bboxes`, shape `[N+1, 7]` (4 box values + 3D centroid).
    - Slots come from `task.classes` and `task.slot_by_class`.

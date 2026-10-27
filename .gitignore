@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 hodor_output/
 pretrained/sam_vit_h_4b8939.pth
+
+.DS_Store
+*.bundle
+logs.zip

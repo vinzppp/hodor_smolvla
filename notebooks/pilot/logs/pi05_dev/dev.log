@@ -1,0 +1,61 @@
+stats keys {'action': ['count', 'max', 'mean', 'min', 'q01', 'q99', 'std'], 'observation.state': ['count', 'max', 'mean', 'min', 'q01', 'q99', 'std']} 0s
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files:  50%|█████     | 2/4 [00:00<00:00,  5.64it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00,  7.33it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00,  7.01it/s]
+WARNING:lerobot.configs.policies:Device 'mps' is not available. Switching to 'cuda'.
+The PI05 model is a direct port of the OpenPI implementation. 
+This implementation follows the original OpenPI structure for compatibility. 
+Original implementation: https://github.com/Physical-Intelligence/openpi
+Loading model from: lerobot/pi05_base
+✓ Loaded state dict from model.safetensors
+WARNING:root:Vision embedding key might need handling: paligemma_with_expert.paligemma.model.vision_tower.vision_model.embeddings.patch_embedding.bias
+WARNING:root:Vision embedding key might need handling: paligemma_with_expert.paligemma.model.vision_tower.vision_model.embeddings.patch_embedding.weight
+Remapped 812 state dict keys
+All keys loaded successfully!
+built PI05Pytorch d_model 2048 trainable 12783616 131s
+A0 loss 0.5986529588699341 | prompt: '<bos>Task: watch the video carefully, then pick up the container hiding the green cube;\nAction: ' | action norm range -1.0005854368209839 1.0
+A2 loss 0.9380826950073242 | prompt: '<bos>Task: watch the video carefully, then pick up the container hiding the green cube. Objects: [0 container, visible, at <91, 79>]; [1 container, visible, at ' | action norm range -1.0005854368209839 1.0
+A3 loss 0.4337238371372223 | prompt: '<bos>Task: watch the video carefully, then pick up the container hiding the green cube;\nAction: ' | action norm range -1.0005854368209839 1.0
+A3 select_action (1, 8) queue 15
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00,  4.36it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00,  4.36it/s]
+WARNING:lerobot.configs.policies:Device 'mps' is not available. Switching to 'cuda'.
+The PI05 model is a direct port of the OpenPI implementation. 
+This implementation follows the original OpenPI structure for compatibility. 
+Original implementation: https://github.com/Physical-Intelligence/openpi
+Loading model from: lerobot/pi05_base
+✓ Loaded state dict from model.safetensors
+WARNING:root:Vision embedding key might need handling: paligemma_with_expert.paligemma.model.vision_tower.vision_model.embeddings.patch_embedding.bias
+WARNING:root:Vision embedding key might need handling: paligemma_with_expert.paligemma.model.vision_tower.vision_model.embeddings.patch_embedding.weight
+Remapped 812 state dict keys
+All keys loaded successfully!
+step      0  loss 0.5858  1.47 it/s
+step      1  loss 0.5550  1.62 it/s
+step      2  loss 0.4689  1.68 it/s
+A0 train ok {'steps': 3, 'lr': 5e-05, 'ema': True, 'chunk_size': 20, 'n_action_steps': 16, 'max_mem_GB': 20.402212352}
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files:  50%|█████     | 2/4 [00:00<00:00,  2.14it/s]Fetching 4 files:  75%|███████▌  | 3/4 [00:01<00:00,  3.10it/s]Fetching 4 files: 100%|██████████| 4/4 [00:01<00:00,  3.79it/s]
+WARNING:lerobot.configs.policies:Device 'mps' is not available. Switching to 'cuda'.
+The PI05 model is a direct port of the OpenPI implementation. 
+This implementation follows the original OpenPI structure for compatibility. 
+Original implementation: https://github.com/Physical-Intelligence/openpi
+Loading model from: lerobot/pi05_base
+✓ Loaded state dict from model.safetensors
+WARNING:root:Vision embedding key might need handling: paligemma_with_expert.paligemma.model.vision_tower.vision_model.embeddings.patch_embedding.bias
+WARNING:root:Vision embedding key might need handling: paligemma_with_expert.paligemma.model.vision_tower.vision_model.embeddings.patch_embedding.weight
+Remapped 812 state dict keys
+All keys loaded successfully!
+step      0  loss 0.4489  1.61 it/s
+step      1  loss 0.5364  1.68 it/s
+step      2  loss 0.5355  1.71 it/s
+A3 train ok {'steps': 3, 'lr': 5e-05, 'ema': True, 'chunk_size': 20, 'n_action_steps': 16, 'max_mem_GB': 20.441332224}
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files:  50%|█████     | 2/4 [00:00<00:00,  4.08it/s]Fetching 4 files:  75%|███████▌  | 3/4 [00:00<00:00,  5.09it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00,  6.45it/s]
+WARNING:lerobot.configs.policies:Device 'mps' is not available. Switching to 'cuda'.
+The PI05 model is a direct port of the OpenPI implementation. 
+This implementation follows the original OpenPI structure for compatibility. 
+Original implementation: https://github.com/Physical-Intelligence/openpi
+Loading model from: lerobot/pi05_base
+✓ Loaded state dict from model.safetensors
+WARNING:root:Vision embedding key might need handling: paligemma_with_expert.paligemma.model.vision_tower.vision_model.embeddings.patch_embedding.bias
+WARNING:root:Vision embedding key might need handling: paligemma_with_expert.paligemma.model.vision_tower.vision_model.embeddings.patch_embedding.weight
+Remapped 812 state dict keys
+All keys loaded successfully!
+episode 0: ongoing in 100 steps (11 s); lifted container None (true 1, graph-named n/a); targets [3, 4]
+eval ok pi05 [('ongoing', 100)] 11s
+total 436s

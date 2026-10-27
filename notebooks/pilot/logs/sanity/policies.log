@@ -1,0 +1,63 @@
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00, 723.47it/s]
+Loading  HuggingFaceTB/SmolVLM2-500M-Video-Instruct weights ...
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+WARNING:huggingface_hub.utils._http:Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/489 [00:00<?, ?it/s]Loading weights:  72%|███████▏  | 351/489 [00:00<00:00, 3482.73it/s]Loading weights: 100%|██████████| 489/489 [00:00<00:00, 4100.60it/s]
+Reducing the number of VLM layers to 16 ...
+episode 0: success in 95 steps (10 s); lifted container 2 (true 2, graph-named n/a); targets [3]
+A0 train ep 0: success in 95 steps; lifted 2 (true 2); targets [3]
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00, 1499.44it/s]
+Loading  HuggingFaceTB/SmolVLM2-500M-Video-Instruct weights ...
+Loading weights:   0%|          | 0/489 [00:00<?, ?it/s]Loading weights: 100%|██████████| 489/489 [00:00<00:00, 5595.24it/s]
+Reducing the number of VLM layers to 16 ...
+episode 1: success in 268 steps (9 s); lifted container 1 (true 1, graph-named n/a); targets [3]
+A0 train ep 1: success in 268 steps; lifted 1 (true 1); targets [3]
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00, 1176.77it/s]
+Loading  HuggingFaceTB/SmolVLM2-500M-Video-Instruct weights ...
+Loading weights:   0%|          | 0/489 [00:00<?, ?it/s]Loading weights: 100%|██████████| 489/489 [00:00<00:00, 5288.26it/s]
+Reducing the number of VLM layers to 16 ...
+episode 2: ongoing in 1300 steps (30 s); lifted container None (true 0, graph-named n/a); targets [4]
+A0 train ep 2: ongoing in 1300 steps; lifted None (true 0); targets [4]
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00, 798.04it/s]
+Loading  HuggingFaceTB/SmolVLM2-500M-Video-Instruct weights ...
+Loading weights:   0%|          | 0/489 [00:00<?, ?it/s]Loading weights:  76%|███████▋  | 373/489 [00:00<00:00, 3529.87it/s]Loading weights: 100%|██████████| 489/489 [00:00<00:00, 4069.54it/s]
+Reducing the number of VLM layers to 16 ...
+episode 3: ongoing in 1300 steps (32 s); lifted container 0 (true 2, graph-named n/a); targets [4, 5]
+A0 train ep 3: ongoing in 1300 steps; lifted 0 (true 2); targets [4, 5]
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00, 1333.64it/s]
+Loading  HuggingFaceTB/SmolVLM2-500M-Video-Instruct weights ...
+Loading weights:   0%|          | 0/489 [00:00<?, ?it/s]Loading weights:  88%|████████▊ | 429/489 [00:00<00:00, 4289.12it/s]Loading weights: 100%|██████████| 489/489 [00:00<00:00, 4567.79it/s]
+Reducing the number of VLM layers to 16 ...
+episode 4: success in 210 steps (7 s); lifted container 2 (true 2, graph-named n/a); targets [3]
+A0 train ep 4: success in 210 steps; lifted 2 (true 2); targets [3]
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00, 1099.93it/s]
+Loading  HuggingFaceTB/SmolVLM2-500M-Video-Instruct weights ...
+Loading weights:   0%|          | 0/489 [00:00<?, ?it/s]Loading weights: 100%|██████████| 489/489 [00:00<00:00, 6383.69it/s]
+Reducing the number of VLM layers to 16 ...
+episode 0: success in 114 steps (5 s); lifted container 2 (true 2, graph-named n/a); targets [3]
+A2 train ep 0: success in 114 steps; lifted 2 (true 2); targets [3]
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00, 734.30it/s]
+Loading  HuggingFaceTB/SmolVLM2-500M-Video-Instruct weights ...
+Loading weights:   0%|          | 0/489 [00:00<?, ?it/s]Loading weights:  68%|██████▊   | 332/489 [00:00<00:00, 3315.36it/s]Loading weights: 100%|██████████| 489/489 [00:00<00:00, 4121.92it/s]
+Reducing the number of VLM layers to 16 ...
+episode 1: success in 161 steps (6 s); lifted container 1 (true 1, graph-named n/a); targets [3]
+A2 train ep 1: success in 161 steps; lifted 1 (true 1); targets [3]
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00, 1271.77it/s]
+Loading  HuggingFaceTB/SmolVLM2-500M-Video-Instruct weights ...
+Loading weights:   0%|          | 0/489 [00:00<?, ?it/s]Loading weights:  64%|██████▎   | 311/489 [00:00<00:00, 3102.95it/s]Loading weights: 100%|██████████| 489/489 [00:00<00:00, 4006.33it/s]
+Reducing the number of VLM layers to 16 ...
+episode 2: success in 97 steps (4 s); lifted container 0 (true 0, graph-named n/a); targets [4]
+A2 train ep 2: success in 97 steps; lifted 0 (true 0); targets [4]
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00, 1436.77it/s]
+Loading  HuggingFaceTB/SmolVLM2-500M-Video-Instruct weights ...
+Loading weights:   0%|          | 0/489 [00:00<?, ?it/s]Loading weights:  64%|██████▍   | 312/489 [00:00<00:00, 3118.90it/s]Loading weights: 100%|██████████| 489/489 [00:00<00:00, 4057.17it/s]
+Reducing the number of VLM layers to 16 ...
+episode 3: ongoing in 1300 steps (33 s); lifted container 2 (true 2, graph-named n/a); targets [4, 5]
+A2 train ep 3: ongoing in 1300 steps; lifted 2 (true 2); targets [4, 5]
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00, 832.08it/s]
+Loading  HuggingFaceTB/SmolVLM2-500M-Video-Instruct weights ...
+Loading weights:   0%|          | 0/489 [00:00<?, ?it/s]Loading weights:  81%|████████  | 397/489 [00:00<00:00, 3967.44it/s]Loading weights: 100%|██████████| 489/489 [00:00<00:00, 4407.32it/s]
+Reducing the number of VLM layers to 16 ...
+episode 4: success in 246 steps (8 s); lifted container 2 (true 2, graph-named n/a); targets [3]
+A2 train ep 4: success in 246 steps; lifted 2 (true 2); targets [3]

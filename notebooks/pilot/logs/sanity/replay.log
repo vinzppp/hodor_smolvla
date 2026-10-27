@@ -1,0 +1,14 @@
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00, 764.86it/s]
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+WARNING:huggingface_hub.utils._http:Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading  HuggingFaceTB/SmolVLM2-500M-Video-Instruct weights ...
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/489 [00:00<?, ?it/s]Loading weights:  86%|████████▌ | 419/489 [00:00<00:00, 3896.02it/s]Loading weights: 100%|██████████| 489/489 [00:00<00:00, 4210.51it/s]
+Reducing the number of VLM layers to 16 ...
+action normalisation (NormalizationMode.MEAN_STD): mean [ 5.000e-03  3.480e-01 -1.000e-03 -2.078e+00  1.000e-03  2.424e+00
+  7.980e-01  1.000e-03] std [0.146 0.3   0.098 0.429 0.066 0.33  0.505 1.   ]
+replay ep 0: success after 152 of 158 recorded actions; max |post(normalise(a)) - a| = 1.19e-07; action dtype float32
+replay ep 1: success after 152 of 158 recorded actions; max |post(normalise(a)) - a| = 1.19e-07; action dtype float32
+replay ep 2: success after 152 of 158 recorded actions; max |post(normalise(a)) - a| = 1.19e-07; action dtype float32
+replay ep 3: success after 365 of 370 recorded actions; max |post(normalise(a)) - a| = 1.19e-07; action dtype float32
+replay ep 4: success after 191 of 197 recorded actions; max |post(normalise(a)) - a| = 1.19e-07; action dtype float32

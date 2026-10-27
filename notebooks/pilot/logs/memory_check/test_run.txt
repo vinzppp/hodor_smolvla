@@ -1,0 +1,76 @@
+test ep  0  targets 2  green cube  t*  114  disp   41.8  frozen   40.0  bound    2.7  moved
+test ep  1  targets 1  green cube  t*  168  disp    0.0  frozen    2.5  bound    2.5  back at start
+test ep  2  targets 1  red cube    t*  114  disp   29.0  frozen   27.5  bound    2.9  moved
+test ep  3  targets 2  green cube  t*  216  disp   72.4  frozen   70.3  bound    3.1  moved
+test ep  4  targets 2  red cube    t*  114  disp   59.1  frozen   59.8  bound    4.2  moved
+test ep  5  targets 1  red cube    t*  114  disp    0.0  frozen    1.8  bound    1.8  back at start
+test ep  6  targets 1  blue cube   t*  168  disp   42.7  frozen   44.2  bound    3.5  moved
+test ep  7  targets 2  blue cube   t*  216  disp   39.3  frozen   39.5  bound    3.6  moved
+test ep  8  targets 1  blue cube   t*  168  disp   65.7  frozen   66.8  bound    4.5  moved
+test ep  9  targets 2  red cube    t*  114  disp   31.9  frozen   30.2  bound    2.5  moved
+test ep 10  targets 1  green cube  t*  114  disp   35.8  frozen   36.8  bound    3.1  moved
+test ep 11  targets 2  red cube    t*  216  disp   46.1  frozen   47.5  bound    3.6  moved
+test ep 12  targets 1  blue cube   t*  114  disp   50.1  frozen   49.5  bound    3.1  moved
+test ep 13  targets 1  blue cube   t*  114  disp    0.0  frozen    2.9  bound    2.9  back at start
+test ep 14  targets 1  blue cube   t*  114  disp   40.8  frozen   38.2  bound    1.2  moved
+test ep 15  targets 2  green cube  t*  216  disp   66.6  frozen   67.3  bound    4.4  moved
+test ep 16  targets 1  blue cube   t*  114  disp   33.2  frozen   32.2  bound    2.8  moved
+test ep 17  targets 1  red cube    t*  168  disp    0.1  frozen    1.2  bound    1.3  back at start
+test ep 18  targets 1  green cube  t*  114  disp    0.0  frozen    2.9  bound    2.9  back at start
+test ep 19  targets 2  green cube  t*  216  disp    0.0  frozen    3.2  bound    3.2  back at start
+test ep 20  targets 2  green cube  t*  114  disp   41.8  frozen   39.5  bound    0.9  moved
+test ep 21  targets 2  blue cube   t*  114  disp    0.1  frozen    3.2  bound    3.2  back at start
+test ep 22  targets 1  red cube    t*  114  disp   43.0  frozen   41.3  bound    2.5  moved
+test ep 23  targets 2  green cube  t*  216  disp    0.0  frozen    2.5  bound    2.5  back at start
+test ep 24  targets 1  blue cube   t*  168  disp   29.1  frozen   26.3  bound    2.0  moved
+test ep 25  targets 1  green cube  t*  114  disp   33.4  frozen   30.5  bound    1.5  moved
+test ep 26  targets 1  green cube  t*  114  disp   37.9  frozen   35.2  bound    1.5  moved
+test ep 27  targets 2  green cube  t*  216  disp   34.5  frozen   35.2  bound    3.3  moved
+test ep 28  targets 1  red cube    t*  114  disp    0.0  frozen    3.0  bound    3.0  back at start
+test ep 29  targets 2  green cube  t*  114  disp   46.6  frozen   44.8  bound    2.2  moved
+test ep 30  targets 1  red cube    t*  168  disp    0.0  frozen    2.5  bound    2.5  back at start
+test ep 31  targets 2  green cube  t*  168  disp   63.3  frozen   61.3  bound    2.6  moved
+test ep 32  targets 1  green cube  t*  114  disp   53.0  frozen   52.1  bound    2.9  moved
+test ep 33  targets 2  green cube  t*  168  disp    0.0  frozen    2.0  bound    2.0  back at start
+test ep 34  targets 1  green cube  t*  114  disp    0.0  frozen    3.0  bound    3.0  back at start
+test ep 35  targets 2  blue cube   t*  168  disp   45.4  frozen   44.6  bound    2.8  moved
+test ep 36  targets 2  green cube  t*  114  disp   47.0  frozen   48.3  bound    3.7  moved
+test ep 37  targets 1  blue cube   t*  114  disp   53.5  frozen   52.8  bound    3.4  moved
+test ep 38  targets 1  green cube  t*  168  disp   37.9  frozen   35.3  bound    1.4  moved
+test ep 39  targets 2  blue cube   t*  216  disp    0.0  frozen    1.3  bound    1.3  back at start
+test ep 40  targets 1  green cube  t*  114  disp    0.0  frozen    2.9  bound    2.9  back at start
+test ep 41  targets 2  blue cube   t*  168  disp    0.0  frozen    2.2  bound    2.2  back at start
+test ep 42  targets 1  blue cube   t*  114  disp    0.0  frozen    2.8  bound    2.8  back at start
+test ep 43  targets 2  green cube  t*  168  disp    0.0  frozen    2.9  bound    2.9  back at start
+test ep 44  targets 2  red cube    t*  168  disp    0.1  frozen    3.4  bound    3.4  back at start
+test ep 45  targets 1  blue cube   t*  168  disp    0.0  frozen    2.7  bound    2.8  back at start
+test ep 46  targets 1  green cube  t*  168  disp   29.2  frozen   29.9  bound    3.0  moved
+test ep 47  targets 2  red cube    t*  216  disp   72.7  frozen   70.9  bound    3.4  moved
+test ep 48  targets 1  green cube  t*  114  disp   58.6  frozen   59.6  bound    4.2  moved
+test ep 49  targets 2  green cube  t*  114  disp   60.6  frozen   59.7  bound    3.4  moved
+
+test, all: 50 episodes
+  gap > 10 px (frozen - bound at t*): 31 of 50
+  frozen error > 10 px at t*:         31 of 50
+  disp_px    n=50  median   33.9  quartiles [   0.0,   46.5]  max   72.7
+  frozen_px  n=50  median   33.7  quartiles [   2.9,   46.8]  max   70.9
+  bound_px   n=50  median    2.9  quartiles [   2.5,    3.3]  max    4.5
+  gap_px     n=50  median   30.7  quartiles [   0.0,   43.5]  max   67.4
+
+test, moved: 31 episodes
+  gap > 10 px (frozen - bound at t*): 31 of 31
+  frozen error > 10 px at t*:         31 of 31
+  disp_px    n=31  median   43.0  quartiles [  36.8,   56.0]  max   72.7
+  frozen_px  n=31  median   44.2  quartiles [  35.3,   56.2]  max   70.9
+  bound_px   n=31  median    3.0  quartiles [   2.5,    3.4]  max    4.5
+  gap_px     n=31  median   40.8  quartiles [  33.6,   52.4]  max   67.4
+
+test, back at start: 19 episodes
+  gap > 10 px (frozen - bound at t*): 0 of 19
+  frozen error > 10 px at t*:         0 of 19
+  disp_px    n=19  median    0.0  quartiles [   0.0,    0.0]  max    0.1
+  frozen_px  n=19  median    2.8  quartiles [   2.3,    3.0]  max    3.4
+  bound_px   n=19  median    2.8  quartiles [   2.3,    3.0]  max    3.4
+  gap_px     n=19  median    0.0  quartiles [  -0.0,    0.0]  max    0.0
+
+moved: 31 of 50; motion labels: /workspace/sg/notebooks/pilot/cache/VideoUnmaskSwap_test/motion.json
