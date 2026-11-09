@@ -1,3 +1,5 @@
+> Historical development record: some commands, paths, pending checks and setup assumptions below describe an earlier state. See the repository README and docs/RESEARCH_STATUS.md for the current status. Preserve this record as provenance.
+
 # Pod runbook: running the pilot notebook on RunPod
 
 The notebook needs Linux, an NVIDIA GPU and working Vulkan, so it runs on a rented pod, not on the Mac.

@@ -1,3 +1,5 @@
+> Historical development record: some commands, paths, pending checks and setup assumptions below describe an earlier state. See the repository README and docs/RESEARCH_STATUS.md for the current status. Preserve this record as provenance.
+
 # Section 3.1 replication notes
 
 Target: reproduce Section 3.1, "Task-Driven Scene Graph," of *Expanding Spatial

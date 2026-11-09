@@ -1,3 +1,5 @@
+> Historical development record: some commands, paths, pending checks and setup assumptions below describe an earlier state. See the repository README and docs/RESEARCH_STATUS.md for the current status. Preserve this record as provenance.
+
 # Build notes (built 2026-10-26; all steps run in smoke mode on the pod)
 
 Date: 2026-10-26. Built without a GPU, so nothing GPU-dependent has run. All results in the notebook are `= ?` until it is executed.

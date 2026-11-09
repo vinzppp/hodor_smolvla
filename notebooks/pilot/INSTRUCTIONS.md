@@ -1,3 +1,5 @@
+> Historical development record: some commands, paths, pending checks and setup assumptions below describe an earlier state. See the repository README and docs/RESEARCH_STATUS.md for the current status. Preserve this record as provenance.
+
 # Notebook instructions: scene-graph interfaces for SmolVLA on RoboMME (pilot, data to training)
 
 ## Goal
@@ -30,7 +32,7 @@ Define `RUN_MODE` in the first code cell. Every heavy cell reads it.
    - It returns `FrameOutput.representation`, shape `[N+1, 768]` (slot 0 = global CLS feature, slots 1..N = object features), and `FrameOutput.bboxes`, shape `[N+1, 7]` (4 box values + 3D centroid).
    - Slots come from `task.classes` and `task.slot_by_class`.
    - Internal steps to expose one at a time: `tracker.process`, `_mask_to_instances`, `_add_centroids` (via `_depth_to_pointcloud`), `_obtain_features`.
-2. **The research plan:** `output/research-map-scene-graph-memory-2026-10-24.md`, sections 1, 4 and 5.
+2. **The research plan:** `docs/research-map-scene-graph-memory-2026-10-24.md`, sections 1, 4 and 5.
 3. **The benchmark:**
    - RoboMME paper: https://arxiv.org/abs/2603.04639
    - dataset `lerobot/robomme` on Hugging Face
