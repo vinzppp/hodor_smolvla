@@ -20,7 +20,6 @@ Interfaces (same per-object content as SmolVLA: id, label, (u, v), hidden):
   A0 no graph; A1 markers on the front image (π0.5 resizes 256 -> 224 with padding, so the marker size is
   re-checked); A2 text appended to the instruction inside π0.5's prompt "Task: ...;\\nAction: "; A3 graph
   tokens appended to π0.5's prefix after the language tokens (π0.5 has no state token to insert before).
-Differences from SmolVLA are listed in BUILD_NOTES, "π0.5 version".
 """
 
 from __future__ import annotations

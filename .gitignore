@@ -9,3 +9,8 @@ logs.zip
 
 .venv/
 .ipynb_checkpoints/
+
+# Local development records and assistant configuration
+/.local-development/
+/.claude/
+/.codex/

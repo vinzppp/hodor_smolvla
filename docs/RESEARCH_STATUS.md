@@ -12,7 +12,7 @@ This shareable summary records the completed work and limitations from the proje
 
 ## Reading and reproduction
 
-Start with [the π0.5 notebook](../notebooks/pilot/sg_interfaces_pi05.ipynb), [executed smoke output](../notebooks/pilot/executed/sg_interfaces_pi05_smoke.ipynb) and [build notes](../notebooks/pilot/BUILD_NOTES.md). The [SmolVLA notebook](../notebooks/pilot/sg_interfaces_pilot.ipynb) remains part of the research history. Logs and figures remain under `notebooks/pilot/`; historical DROID results remain under `archive/droid-section3.1/results/`.
+Start with [the π0.5 notebook](../notebooks/pilot/sg_interfaces_pi05.ipynb), [executed smoke output](../notebooks/pilot/executed/sg_interfaces_pi05_smoke.ipynb) and the [recorded environment](ENVIRONMENT.md). The [SmolVLA notebook](../notebooks/pilot/sg_interfaces_pilot.ipynb) remains part of the research history. Logs and figures remain under `notebooks/pilot/`; historical DROID results remain under `archive/droid-section3.1/results/`.
 
 The Linux GPU setup uses separate policy and perception environments because their transformers versions conflict. Full RoboMME H5 data, replay caches and trained checkpoints may require separate access from the maintainer. The repository's offline structural check does not reproduce GPU results. Notebook placeholders and proposed experiment grids are not measured findings.
 
