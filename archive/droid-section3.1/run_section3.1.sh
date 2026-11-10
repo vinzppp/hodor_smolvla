@@ -45,7 +45,7 @@ git branch -r                                     # find your branch under fork/
 # This pulls in llm_entities.py, dinov2_encoder.py, your edits to vit.py /
 # post_process_scene_cutie.py, the configs, and setup_gpu.sh — WITHOUT touching
 # upstream's real LFS data/ and pretrained/ blobs.
-git checkout fork/main -- '*.py' configs setup_gpu.sh SECTION_3_1_NOTES.md
+git checkout fork/main -- '*.py' configs setup_gpu.sh
 
 # -----------------------------------------------------------------------------
 # 2. One-shot environment setup.
