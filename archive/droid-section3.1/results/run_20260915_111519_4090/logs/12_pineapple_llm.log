@@ -1,128 +1,0 @@
-[entities] task 'pineapple_llm': ['pineapple.', 'bowl.'] (provider=openrouter, model=openai/gpt-4o-mini)
-==============================================================================
-task          : pineapple_llm
-config        : configs/pineapple_llm.yaml
-instruction   : pick up the pineapple and place it in the bowl
-classes       : ['pineapple.', 'bowl.']
-slot_by_class : {0: 1, 1: 2}
-backbone      : dino-vit-b16 @ 224px
-data_path     : ./data/pineapple
-output_dir    : ./hodor_output/pineapple_llm
-device        : NVIDIA GeForce RTX 4090
-pipeline      : 1 GroundingDINO -> 2 SAM ViT-H -> 3 Cutie -> 4 DINO embed
-rerun viewer  : ON -> ./hodor_output/pineapple_llm/rerun
-==============================================================================
-Load ckpt from ./pretrained/dino_vitbase16_pretrain.pth
-All keys matched successfully!
-Loaded encoder from: ./pretrained/dino_vitbase16_pretrain.pth
-/usr/local/lib/python3.12/dist-packages/torch/functional.py:554: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at /pytorch/aten/src/ATen/native/TensorShape.cpp:4322.)
-  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
-final text_encoder_type: bert-base-uncased
-/usr/local/lib/python3.12/dist-packages/transformers/tokenization_utils_base.py:1601: FutureWarning: `clean_up_tokenization_spaces` was not set. It will be set to `True` by default. This behavior will be depracted in transformers v4.45, and will be then set to `False` by default. For more details check this issue: https://github.com/huggingface/transformers/issues/31884
-  warnings.warn(
-models loaded in 20.1s
-Found 10 episodes
-pineapple_llm:   0%|          | 0/10 [00:00<?, ?it/s]loading trajectory ./data/pineapple/Mon_Sep_22_01:32:36_2025/trajectory.h5
-/usr/local/lib/python3.12/dist-packages/transformers/modeling_utils.py:1126: FutureWarning: The `device` argument is deprecated and will be removed in v5 of Transformers.
-  warnings.warn(
-/usr/local/lib/python3.12/dist-packages/torch/_dynamo/eval_frame.py:929: UserWarning: torch.utils.checkpoint: the use_reentrant parameter should be passed explicitly. In version 2.5 we will raise an exception if use_reentrant is not passed. use_reentrant=False is recommended, but if you need to preserve the current default behavior, you can pass use_reentrant=True. Refer to docs for more details on the differences between the two variants.
-  return fn(*args, **kwargs)
-/usr/local/lib/python3.12/dist-packages/torch/utils/checkpoint.py:85: UserWarning: None of the inputs have requires_grad=True. Gradients will be None
-  warnings.warn(
-/workspace/scene-graph-robot/GroundingDINO/groundingdino/models/GroundingDINO/transformer.py:862: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
-  with torch.cuda.amp.autocast(enabled=False):
-                                                         [ep 0 f0] GroundingDINO 'pineapple.': 2 raw box(es), kept conf=0.42 box=[342, 160, 439, 241] -> SAM mask 5634 px -> Cutie seeded
-pineapple_llm:   0%|          | 0/10 [00:03<?, ?it/s]/workspace/scene-graph-robot/Cutie/cutie/utils/tensor_utils.py:48: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
-  with torch.cuda.amp.autocast(enabled=False):
-/workspace/scene-graph-robot/Cutie/cutie/model/modules.py:79: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
-  with torch.cuda.amp.autocast(enabled=False):
-/workspace/scene-graph-robot/Cutie/cutie/model/transformer/object_summarizer.py:78: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
-  with torch.cuda.amp.autocast(enabled=False):
-                                                         [ep 0 f0] GroundingDINO 'bowl.': 1 raw box(es), kept conf=0.79 box=[98, 230, 285, 422] -> SAM mask 27292 px -> Cutie seeded
-pineapple_llm:   0%|          | 0/10 [00:04<?, ?it/s]/workspace/scene-graph-robot/Cutie/cutie/model/big_modules.py:289: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
-  with torch.cuda.amp.autocast(enabled=False):
-/workspace/scene-graph-robot/Cutie/cutie/model/modules.py:62: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
-  with torch.cuda.amp.autocast(enabled=False):
-                                                     [ep 0 Mon_Sep_22_01:32:36_2025] T=140 frames, 6.08 fps, peak GPU 7.21 GB
-    time: load h5/mp4 2.8s | preprocess 1.9s | 1 GroundingDINO 0.4s | 2 SAM 0.5s | 3 Cutie 2.2s | 3b depth->3D 0.7s | 4 DINO embed 0.6s | other 13.8s | TOTAL 23.0s
-    step4 out: pr (140, 3, 768)  bboxes (140, 3, 7)  dino_full (140, 1, 196, 768)
-    presence: pineapple. 100%, bowl. 51%
-    rerun: ./hodor_output/pineapple_llm/rerun/ep0_Mon_Sep_22_01-32-36_2025.rrd (6.7 MB)
-pineapple_llm:   0%|          | 0/10 [00:23<?, ?it/s]pineapple_llm:  10%|█         | 1/10 [00:23<03:27, 23.09s/it]loading trajectory ./data/pineapple/Mon_Sep_22_01:32:10_2025/trajectory.h5
-                                                                 [ep 1 f0] GroundingDINO 'bowl.': 1 raw box(es), kept conf=0.80 box=[28, 154, 204, 321] -> SAM mask 22228 px -> Cutie seeded
-pineapple_llm:  10%|█         | 1/10 [00:25<03:27, 23.09s/it]                                                                 [ep 1 f6] GroundingDINO 'pineapple.': 2 raw box(es), kept conf=0.31 box=[300, 225, 403, 305] -> SAM mask 6256 px -> Cutie seeded
-pineapple_llm:  10%|█         | 1/10 [00:27<03:27, 23.09s/it]                                                             [ep 1 Mon_Sep_22_01:32:10_2025] T=118 frames, 7.19 fps, peak GPU 7.21 GB
-    time: load h5/mp4 1.9s | preprocess 1.7s | 1 GroundingDINO 0.4s | 2 SAM 0.4s | 3 Cutie 1.8s | 3b depth->3D 0.6s | 4 DINO embed 0.4s | other 9.3s | TOTAL 16.4s
-    step4 out: pr (118, 3, 768)  bboxes (118, 3, 7)  dino_full (118, 1, 196, 768)
-    presence: pineapple. 95%, bowl. 52%
-    rerun: ./hodor_output/pineapple_llm/rerun/ep1_Mon_Sep_22_01-32-10_2025.rrd (5.7 MB)
-pineapple_llm:  10%|█         | 1/10 [00:39<03:27, 23.09s/it]pineapple_llm:  20%|██        | 2/10 [00:39<02:33, 19.19s/it]loading trajectory ./data/pineapple/Mon_Sep_22_01:31:41_2025/trajectory.h5
-                                                                 [ep 2 f0] GroundingDINO 'bowl.': 1 raw box(es), kept conf=0.73 box=[53, 274, 245, 426] -> SAM mask 23779 px -> Cutie seeded
-pineapple_llm:  20%|██        | 2/10 [00:42<02:33, 19.19s/it]                                                                 [ep 2 f17] GroundingDINO 'pineapple.': 1 raw box(es), kept conf=0.32 box=[194, 128, 287, 219] -> SAM mask 4693 px -> Cutie seeded
-pineapple_llm:  20%|██        | 2/10 [00:46<02:33, 19.19s/it]                                                             [ep 2 Mon_Sep_22_01:31:41_2025] T=134 frames, 6.84 fps, peak GPU 7.21 GB
-    time: load h5/mp4 2.2s | preprocess 1.8s | 1 GroundingDINO 1.0s | 2 SAM 0.4s | 3 Cutie 1.9s | 3b depth->3D 0.6s | 4 DINO embed 0.5s | other 11.2s | TOTAL 19.6s
-    step4 out: pr (134, 3, 768)  bboxes (134, 3, 7)  dino_full (134, 1, 196, 768)
-    presence: pineapple. 87%, bowl. 51%
-    rerun: ./hodor_output/pineapple_llm/rerun/ep2_Mon_Sep_22_01-31-41_2025.rrd (6.3 MB)
-pineapple_llm:  20%|██        | 2/10 [00:59<02:33, 19.19s/it]pineapple_llm:  30%|███       | 3/10 [00:59<02:15, 19.40s/it]loading trajectory ./data/pineapple/Mon_Sep_22_01:31:20_2025/trajectory.h5
-                                                                 [ep 3 f0] GroundingDINO 'pineapple.': 1 raw box(es), kept conf=0.31 box=[359, 295, 448, 382] -> SAM mask 6361 px -> Cutie seeded
-pineapple_llm:  30%|███       | 3/10 [01:01<02:15, 19.40s/it]                                                                 [ep 3 f0] GroundingDINO 'bowl.': 1 raw box(es), kept conf=0.83 box=[26, 151, 202, 320] -> SAM mask 22453 px -> Cutie seeded
-pineapple_llm:  30%|███       | 3/10 [01:02<02:15, 19.40s/it]                                                             [ep 3 Mon_Sep_22_01:31:20_2025] T=135 frames, 7.28 fps, peak GPU 7.21 GB
-    time: load h5/mp4 2.3s | preprocess 1.9s | 1 GroundingDINO 0.1s | 2 SAM 0.4s | 3 Cutie 2.1s | 3b depth->3D 0.6s | 4 DINO embed 0.5s | other 10.5s | TOTAL 18.5s
-    step4 out: pr (135, 3, 768)  bboxes (135, 3, 7)  dino_full (135, 1, 196, 768)
-    presence: pineapple. 100%, bowl. 51%
-    rerun: ./hodor_output/pineapple_llm/rerun/ep3_Mon_Sep_22_01-31-20_2025.rrd (6.5 MB)
-pineapple_llm:  30%|███       | 3/10 [01:17<02:15, 19.40s/it]pineapple_llm:  40%|████      | 4/10 [01:17<01:54, 19.08s/it]loading trajectory ./data/pineapple/Mon_Sep_22_01:31:00_2025/trajectory.h5
-                                                                 [ep 4 f0] GroundingDINO 'bowl.': 1 raw box(es), kept conf=0.79 box=[87, 244, 275, 425] -> SAM mask 27052 px -> Cutie seeded
-pineapple_llm:  40%|████      | 4/10 [01:20<01:54, 19.08s/it]                                                                 [ep 4 f24] GroundingDINO 'pineapple.': 1 raw box(es), kept conf=0.33 box=[233, 167, 325, 275] -> SAM mask 7234 px -> Cutie seeded
-pineapple_llm:  40%|████      | 4/10 [01:28<01:54, 19.08s/it]                                                             [ep 4 Mon_Sep_22_01:31:00_2025] T=131 frames, 5.77 fps, peak GPU 7.21 GB
-    time: load h5/mp4 2.3s | preprocess 1.8s | 1 GroundingDINO 1.5s | 2 SAM 0.4s | 3 Cutie 1.9s | 3b depth->3D 0.7s | 4 DINO embed 0.5s | other 13.5s | TOTAL 22.7s
-    step4 out: pr (131, 3, 768)  bboxes (131, 3, 7)  dino_full (131, 1, 196, 768)
-    presence: pineapple. 82%, bowl. 56%
-    rerun: ./hodor_output/pineapple_llm/rerun/ep4_Mon_Sep_22_01-31-00_2025.rrd (6.4 MB)
-pineapple_llm:  40%|████      | 4/10 [01:40<01:54, 19.08s/it]pineapple_llm:  50%|█████     | 5/10 [01:40<01:41, 20.40s/it]loading trajectory ./data/pineapple/Mon_Sep_22_01:30:38_2025/trajectory.h5
-                                                                 [ep 5 f0] GroundingDINO 'bowl.': 1 raw box(es), kept conf=0.73 box=[169, 123, 340, 281] -> SAM mask 18153 px -> Cutie seeded
-pineapple_llm:  50%|█████     | 5/10 [01:43<01:41, 20.40s/it]                                                                 [ep 5 f9] GroundingDINO 'pineapple.': 1 raw box(es), kept conf=0.31 box=[359, 196, 447, 291] -> SAM mask 6595 px -> Cutie seeded
-pineapple_llm:  50%|█████     | 5/10 [01:47<01:41, 20.40s/it]                                                             [ep 5 Mon_Sep_22_01:30:38_2025] T=138 frames, 6.39 fps, peak GPU 7.21 GB
-    time: load h5/mp4 2.2s | preprocess 1.9s | 1 GroundingDINO 0.6s | 2 SAM 0.4s | 3 Cutie 2.1s | 3b depth->3D 0.7s | 4 DINO embed 0.5s | other 13.2s | TOTAL 21.6s
-    step4 out: pr (138, 3, 768)  bboxes (138, 3, 7)  dino_full (138, 1, 196, 768)
-    presence: pineapple. 94%, bowl. 60%
-    rerun: ./hodor_output/pineapple_llm/rerun/ep5_Mon_Sep_22_01-30-38_2025.rrd (6.8 MB)
-pineapple_llm:  50%|█████     | 5/10 [02:02<01:41, 20.40s/it]pineapple_llm:  60%|██████    | 6/10 [02:02<01:23, 20.83s/it]loading trajectory ./data/pineapple/Mon_Sep_22_01:30:18_2025/trajectory.h5
-                                                                 [ep 6 f0] GroundingDINO 'pineapple.': 2 raw box(es), kept conf=0.32 box=[121, 199, 205, 298] -> SAM mask 6011 px -> Cutie seeded
-pineapple_llm:  60%|██████    | 6/10 [02:04<01:23, 20.83s/it]                                                                 [ep 6 f0] GroundingDINO 'bowl.': 1 raw box(es), kept conf=0.72 box=[313, 217, 448, 407] -> SAM mask 20586 px -> Cutie seeded
-pineapple_llm:  60%|██████    | 6/10 [02:04<01:23, 20.83s/it]                                                             [ep 6 Mon_Sep_22_01:30:18_2025] T=103 frames, 5.92 fps, peak GPU 7.21 GB
-    time: load h5/mp4 1.5s | preprocess 1.4s | 1 GroundingDINO 0.1s | 2 SAM 0.4s | 3 Cutie 1.6s | 3b depth->3D 0.5s | 4 DINO embed 0.4s | other 11.4s | TOTAL 17.4s
-    step4 out: pr (103, 3, 768)  bboxes (103, 3, 7)  dino_full (103, 1, 196, 768)
-    presence: pineapple. 100%, bowl. 63%
-    rerun: ./hodor_output/pineapple_llm/rerun/ep6_Mon_Sep_22_01-30-18_2025.rrd (5.0 MB)
-pineapple_llm:  60%|██████    | 6/10 [02:19<01:23, 20.83s/it]pineapple_llm:  70%|███████   | 7/10 [02:19<00:59, 19.72s/it]loading trajectory ./data/pineapple/Mon_Sep_22_01:29:41_2025/trajectory.h5
-                                                                 [ep 7 f0] GroundingDINO 'pineapple.': 1 raw box(es), kept conf=0.34 box=[284, 164, 363, 259] -> SAM mask 5925 px -> Cutie seeded
-pineapple_llm:  70%|███████   | 7/10 [02:22<00:59, 19.72s/it]                                                                 [ep 7 f0] GroundingDINO 'bowl.': 1 raw box(es), kept conf=0.83 box=[38, 163, 214, 334] -> SAM mask 22885 px -> Cutie seeded
-pineapple_llm:  70%|███████   | 7/10 [02:22<00:59, 19.72s/it]                                                             [ep 7 Mon_Sep_22_01:29:41_2025] T=121 frames, 7.00 fps, peak GPU 7.21 GB
-    time: load h5/mp4 2.4s | preprocess 1.7s | 1 GroundingDINO 0.1s | 2 SAM 0.4s | 3 Cutie 1.9s | 3b depth->3D 0.6s | 4 DINO embed 0.5s | other 9.7s | TOTAL 17.3s
-    step4 out: pr (121, 3, 768)  bboxes (121, 3, 7)  dino_full (121, 1, 196, 768)
-    presence: pineapple. 100%, bowl. 58%
-    rerun: ./hodor_output/pineapple_llm/rerun/ep7_Mon_Sep_22_01-29-41_2025.rrd (5.8 MB)
-pineapple_llm:  70%|███████   | 7/10 [02:36<00:59, 19.72s/it]pineapple_llm:  80%|████████  | 8/10 [02:36<00:37, 18.96s/it]loading trajectory ./data/pineapple/Mon_Sep_22_01:28:51_2025/trajectory.h5
-                                                                 [ep 8 f0] GroundingDINO 'pineapple.': 2 raw box(es), kept conf=0.52 box=[347, 182, 430, 278] -> SAM mask 6174 px -> Cutie seeded
-pineapple_llm:  80%|████████  | 8/10 [02:39<00:37, 18.96s/it]                                                                 [ep 8 f0] GroundingDINO 'bowl.': 1 raw box(es), kept conf=0.72 box=[38, 247, 229, 425] -> SAM mask 27269 px -> Cutie seeded
-pineapple_llm:  80%|████████  | 8/10 [02:39<00:37, 18.96s/it]                                                             [ep 8 Mon_Sep_22_01:28:51_2025] T=136 frames, 6.96 fps, peak GPU 7.21 GB
-    time: load h5/mp4 2.1s | preprocess 1.9s | 1 GroundingDINO 0.1s | 2 SAM 0.4s | 3 Cutie 2.1s | 3b depth->3D 0.6s | 4 DINO embed 0.5s | other 11.7s | TOTAL 19.6s
-    step4 out: pr (136, 3, 768)  bboxes (136, 3, 7)  dino_full (136, 1, 196, 768)
-    presence: pineapple. 100%, bowl. 51%
-    rerun: ./hodor_output/pineapple_llm/rerun/ep8_Mon_Sep_22_01-28-51_2025.rrd (6.5 MB)
-pineapple_llm:  80%|████████  | 8/10 [02:56<00:37, 18.96s/it]pineapple_llm:  90%|█████████ | 9/10 [02:56<00:19, 19.16s/it]loading trajectory ./data/pineapple/Mon_Sep_22_01:28:29_2025/trajectory.h5
-                                                                 [ep 9 f0] GroundingDINO 'bowl.': 1 raw box(es), kept conf=0.84 box=[68, 153, 243, 323] -> SAM mask 22480 px -> Cutie seeded
-pineapple_llm:  90%|█████████ | 9/10 [02:59<00:19, 19.16s/it]                                                                 [ep 9 f12] GroundingDINO 'pineapple.': 2 raw box(es), kept conf=0.41 box=[286, 175, 374, 275] -> SAM mask 6591 px -> Cutie seeded
-pineapple_llm:  90%|█████████ | 9/10 [03:01<00:19, 19.16s/it]                                                             [ep 9 Mon_Sep_22_01:28:29_2025] T=126 frames, 6.77 fps, peak GPU 7.21 GB
-    time: load h5/mp4 2.5s | preprocess 1.8s | 1 GroundingDINO 0.7s | 2 SAM 0.4s | 3 Cutie 1.8s | 3b depth->3D 0.6s | 4 DINO embed 0.5s | other 10.1s | TOTAL 18.6s
-    step4 out: pr (126, 3, 768)  bboxes (126, 3, 7)  dino_full (126, 1, 196, 768)
-    presence: pineapple. 90%, bowl. 56%
-    rerun: ./hodor_output/pineapple_llm/rerun/ep9_Mon_Sep_22_01-28-29_2025.rrd (6.1 MB)
-pineapple_llm:  90%|█████████ | 9/10 [03:15<00:19, 19.16s/it]pineapple_llm: 100%|██████████| 10/10 [03:15<00:00, 19.00s/it]pineapple_llm: 100%|██████████| 10/10 [03:15<00:00, 19.52s/it]
-==============================================================================
-DONE pineapple_llm: 10/10 episodes, 1282 frames in 3.3 min (6.57 fps) on NVIDIA GeForce RTX 4090
-stage totals: load h5/mp4 22.3s | preprocess 17.9s | 1 GroundingDINO 5.0s | 2 SAM 4.4s | 3 Cutie 19.4s | 3b depth->3D 6.3s | 4 DINO embed 5.1s | other 114.8s | TOTAL 195.2s
-summary -> ./hodor_output/pineapple_llm/run_summary.json
-==============================================================================
