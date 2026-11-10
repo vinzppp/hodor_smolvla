@@ -88,7 +88,7 @@ git fetch -q fork || die "git fetch fork failed (token expired/rotated?)"
 # Overlay only code/config from the fork; upstream keeps the real LFS data/weights.
 # (run_all_4090.sh itself is not re-checked-out here: never rewrite a running script.)
 git checkout "fork/$BRANCH" -- '*.py' configs setup_gpu.sh run_section3.1.sh \
-    SECTION_3_1_NOTES.md requirements.txt || die "overlay checkout failed"
+    requirements.txt || die "overlay checkout failed"
 log "upstream rev: $(git rev-parse --short HEAD)   fork/$BRANCH rev: $(git rev-parse --short "fork/$BRANCH")"
 
 # Real data, not LFS pointers?
