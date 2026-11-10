@@ -26,7 +26,7 @@ The perceived graph is unusually close to the oracle on VideoUnmaskSwap because 
 | `notebooks/pilot/train.py`, `eval.py`, `tools/` | Experiment entry points and diagnostics; inspect arguments before running |
 | `notebooks/pilot/executed/`, `logs/`, `figures/` | Executed evidence, pilot/smoke logs and figures (under `notebooks/pilot/`) |
 | `archive/droid-section3.1/` | DROID scripts, task configs, recordings and earlier results |
-| `docs/` | Research notes, guides and PDFs |
+| `docs/` | Recorded environment, research status and walkthrough |
 | `pretrained/` | LFS-managed perception weights; SAM must be acquired separately |
 
 ## Minimal setup and verified offline check
@@ -51,10 +51,10 @@ python -m pip install -r requirements.txt
 
 Full notebook execution requires **Linux, an NVIDIA GPU, Vulkan, RoboMME data and separate policy and perception environments**. See the [recorded environment](docs/ENVIRONMENT.md) and [research status](docs/RESEARCH_STATUS.md).
 
-Large recordings and weights use Git LFS. Check availability with `git lfs ls-files`; a clone may contain pointers rather than usable data. Full RoboMME caches and trained checkpoints are not guaranteed to be present locally; Contact the maintainer for access to remote caches and checkpoints. No automatic download or training is part of the offline check.
+Large recordings and weights use Git LFS. Check availability with `git lfs ls-files`; a clone may contain pointers rather than usable data. Full RoboMME caches and trained checkpoints are not guaranteed to be present locally. Contact the maintainer for access to remote caches and checkpoints. No automatic download or training is part of the offline check.
 
 ## Results, history and reproduction
 
-Read `notebooks/pilot/logs/pilot/` for the SmolVLA pilot and `notebooks/pilot/logs/pi05_smoke/` alongside the executed notebook for the π0.5 smoke evidence. Earlier perception results are in `archive/droid-section3.1/results/`. Keep logs, executed notebooks and their settings together when interpreting results.
+Read `notebooks/pilot/logs/pilot/` for the SmolVLA pilot and `notebooks/pilot/logs/pi05_smoke/` alongside the executed notebook for the π0.5 smoke evidence. Earlier perception summaries and example overlays are in `archive/droid-section3.1/results/`. Keep logs, executed notebooks and their settings together when interpreting results.
 
 The DROID scripts retain historical root-relative path assumptions; consult the [archive notes](archive/droid-section3.1/README.md) before reproducing them. They are not the default quick-start.
