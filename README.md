@@ -1,10 +1,20 @@
-# Expanding Spatial and Temporal Context for Robotic Imitation Learning with HODOR
+# hodor_smolvla
 
-**CVPR 2026**
+This repository reproduces the HODOR scene-graph perception pipeline and tests ways to pass object memory into SmolVLA and π0.5. The default branch contains the earlier DROID implementation. For the RoboMME notebooks, checkpoint instructions, and measured pilot results, start at the [pi05-pilot branch](https://github.com/vinzppp/hodor_smolvla/tree/pi05-pilot).
 
-[Paper](https://openaccess.thecvf.com/content/CVPR2026/html/Qian_Expanding_Spatial_and_Temporal_Context_for_Robotic_Imitation_Learning_With_CVPR_2026_paper.html)
+## What is available
 
----
+- The DROID pipeline detects and tracks objects with GroundingDINO, SAM, and Cutie. It combines appearance features from DINOv2 with depth-derived centroids. The scripts and sample recordings are on this branch.
+- The RoboMME SmolVLA pilot compares a baseline without the graph (A0) and a textual graph (A2). Both scored 2 out of 50 on held-out VideoUnmaskSwap episodes. See the [pilot results](https://github.com/vinzppp/hodor_smolvla/tree/pi05-pilot/notebooks/pilot/results).
+- The π0.5 port was exercised with short smoke runs. See the [executed notebook](https://github.com/vinzppp/hodor_smolvla/blob/pi05-pilot/notebooks/pilot/executed/sg_interfaces_pi05_smoke.ipynb) for saved outputs and the [research status](https://github.com/vinzppp/hodor_smolvla/blob/pi05-pilot/docs/RESEARCH_STATUS.md) for the scope of the results.
+
+## DROID entry points
+
+| Component | File |
+| --- | --- |
+| Run the scene-graph pipeline on recorded DROID episodes | [DROID driver](droid_hodor_test_cutie.py) |
+| Maintain the graph and compute object features | [Perception pipeline](post_process_scene_cutie.py) |
+| Configure scenes and tracked entities | [Task configurations](configs/) |
 
 ## Installation
 
