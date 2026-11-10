@@ -1,6 +1,6 @@
-# HODOR_smolVLA — scene-graph memory for robotic policies
+# hodor_smolvla — scene-graph memory for robotic policies
 
-Research code for reproducing HODOR's task-driven scene-graph perception pipeline and studying how object memory can be supplied to vision-language-action policies on RoboMME. The repository name remains `scene-graph`.
+Research code for reproducing HODOR's task-driven scene-graph perception pipeline and studying how object memory can be supplied to vision-language-action policies on RoboMME.
 
 ## What is completed
 
